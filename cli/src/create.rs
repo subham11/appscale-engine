@@ -125,8 +125,11 @@ name = "{name}-native"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "staticlib", "lib"]
+
 [dependencies]
-appscale-core = {{ path = "../../rust-core" }}
+appscale-core = "0.1.0"
 "#
     );
     write_file(&project_dir.join("rust/Cargo.toml"), &cargo_toml)?;
