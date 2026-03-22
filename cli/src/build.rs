@@ -450,7 +450,11 @@ app.run()
 // ---------------------------------------------------------------------------
 
 fn build_ios(config: &BuildConfig) -> Result<()> {
-    let target_label = if config.simulator { "iOS Simulator" } else { "iOS" };
+    let target_label = if config.simulator {
+        "iOS Simulator"
+    } else {
+        "iOS"
+    };
     println!("Building for {target_label}...");
 
     let rust_dir = config.rust_dir();
@@ -530,7 +534,9 @@ fn build_ios_simulator(
         .args(["--sdk", "iphonesimulator", "--show-sdk-path"])
         .output()
         .context("Failed to run xcrun --sdk iphonesimulator --show-sdk-path")?;
-    let sdk_path = String::from_utf8_lossy(&sdk_output.stdout).trim().to_string();
+    let sdk_path = String::from_utf8_lossy(&sdk_output.stdout)
+        .trim()
+        .to_string();
 
     // Find the staticlib
     let profile_dir = if config.release { "release" } else { "debug" };
@@ -1268,6 +1274,7 @@ mod tests {
         let debug_cfg = BuildConfig {
             platform: "web".to_string(),
             release: false,
+            simulator: false,
             output_dir: "dist".to_string(),
             project_root: PathBuf::from("/tmp/test"),
         };
@@ -1276,6 +1283,7 @@ mod tests {
         let release_cfg = BuildConfig {
             platform: "ios".to_string(),
             release: true,
+            simulator: false,
             output_dir: "dist".to_string(),
             project_root: PathBuf::from("/tmp/test"),
         };
@@ -1296,11 +1304,22 @@ mod tests {
             let cfg = BuildConfig {
                 platform: platform.to_string(),
                 release: false,
+                simulator: false,
                 output_dir: "dist".to_string(),
                 project_root: PathBuf::from("/tmp/test"),
             };
             assert_eq!(cfg.rust_target(), expected_target);
         }
+
+        // iOS simulator target
+        let sim_cfg = BuildConfig {
+            platform: "ios".to_string(),
+            release: false,
+            simulator: true,
+            output_dir: "dist".to_string(),
+            project_root: PathBuf::from("/tmp/test"),
+        };
+        assert_eq!(sim_cfg.rust_target(), "aarch64-apple-ios-sim");
     }
 
     #[test]
