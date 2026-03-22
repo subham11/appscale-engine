@@ -1,0 +1,55 @@
+{
+  "name": "@appscale/core",
+  "version": "0.1.0",
+  "description": "AppScale Universal Framework — React to native widgets across iOS, Android, macOS, Windows, and Web",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "author": "Satyam Kumar Das <subham11@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/subham11/appscale-engine"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "flatbuffers": "^24.3.25"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-reconciler": ">=0.30.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/react": "^19.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "react": "^19.1.0",
+    "react-reconciler": "^0.31.0",
+    "ts-jest": "^29.4.6",
+    "typescript": "^5.7.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "react",
+    "cross-platform",
+    "native",
+    "ios",
+    "android",
+    "macos",
+    "windows",
+    "web",
+    "rust",
+    "taffy",
+    "layout",
+    "framework"
+  ]
+}

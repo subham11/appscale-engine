@@ -1,0 +1,191 @@
+// AppScale Binary IR Schema (FlatBuffers)
+//
+// This replaces JSON serialization in Phase 2 for production performance.
+// Benefits over JSON:
+// - Zero-copy deserialization (no parsing step)
+// - ~10x smaller wire size for typical UI trees
+// - Deterministic binary format (replayable, cacheable)
+// - Type-safe across JS ↔ Rust boundary
+//
+// Compile with: flatc --rust --ts ir.fbs
+
+namespace AppScale.IR;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// View types
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+enum ViewType : ubyte {
+  Container = 0,
+  Text = 1,
+  TextInput = 2,
+  Image = 3,
+  ScrollView = 4,
+  Button = 5,
+  Switch = 6,
+  Slider = 7,
+  ActivityIndicator = 8,
+  DatePicker = 9,
+  Modal = 10,
+  BottomSheet = 11,
+  MenuBar = 12,
+  TitleBar = 13,
+  Custom = 255
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Layout enums
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+enum Display : byte { Flex = 0, Grid = 1, None = 2 }
+enum Position : byte { Relative = 0, Absolute = 1 }
+enum FlexDirection : byte { Column = 0, Row = 1, ColumnReverse = 2, RowReverse = 3 }
+enum FlexWrap : byte { NoWrap = 0, Wrap = 1, WrapReverse = 2 }
+enum JustifyContent : byte { FlexStart = 0, FlexEnd = 1, Center = 2, SpaceBetween = 3, SpaceAround = 4, SpaceEvenly = 5 }
+enum AlignItems : byte { FlexStart = 0, FlexEnd = 1, Center = 2, Stretch = 3, Baseline = 4 }
+enum DimensionType : byte { Auto = 0, Points = 1, Percent = 2 }
+enum Overflow : byte { Visible = 0, Hidden = 1, Scroll = 2 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Value types
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+struct Color {
+  r: ubyte;
+  g: ubyte;
+  b: ubyte;
+  a: float;
+}
+
+struct Edges {
+  top: float;
+  right: float;
+  bottom: float;
+  left: float;
+}
+
+struct Dimension {
+  type: DimensionType;
+  value: float;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Layout style (sent with CreateNode and UpdateStyle)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+table LayoutStyle {
+  display: Display = Flex;
+  position: Position = Relative;
+  flex_direction: FlexDirection = Column;
+  flex_wrap: FlexWrap = NoWrap;
+  flex_grow: float = 0.0;
+  flex_shrink: float = 1.0;
+  justify_content: JustifyContent;
+  align_items: AlignItems;
+  width: Dimension;
+  height: Dimension;
+  min_width: Dimension;
+  min_height: Dimension;
+  max_width: Dimension;
+  max_height: Dimension;
+  aspect_ratio: float;    // 0.0 = unset
+  margin: Edges;
+  padding: Edges;
+  gap: float = 0.0;
+  overflow: Overflow = Visible;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Props (key-value pairs for visual properties)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+union PropValueUnion {
+  StringVal,
+  FloatVal,
+  IntVal,
+  BoolVal,
+  ColorVal,
+}
+
+table StringVal { value: string; }
+table FloatVal { value: float; }
+table IntVal { value: int; }
+table BoolVal { value: bool; }
+table ColorVal { value: Color; }
+
+table PropEntry {
+  key: string (required);
+  value: PropValueUnion;
+}
+
+table PropsDiff {
+  changes: [PropEntry];
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// IR Commands
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+table CreateNode {
+  id: ulong;
+  view_type: ViewType;
+  custom_type: string;    // Only used when view_type = Custom
+  props: PropsDiff;
+  style: LayoutStyle;
+}
+
+table UpdateProps {
+  id: ulong;
+  diff: PropsDiff;
+}
+
+table UpdateStyle {
+  id: ulong;
+  style: LayoutStyle;
+}
+
+table AppendChild {
+  parent: ulong;
+  child: ulong;
+}
+
+table InsertBefore {
+  parent: ulong;
+  child: ulong;
+  before: ulong;
+}
+
+table RemoveChild {
+  parent: ulong;
+  child: ulong;
+}
+
+table SetRoot {
+  id: ulong;
+}
+
+union Command {
+  CreateNode,
+  UpdateProps,
+  UpdateStyle,
+  AppendChild,
+  InsertBefore,
+  RemoveChild,
+  SetRoot,
+}
+
+table IrCommand {
+  cmd: Command;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Batch (one React commit = one batch)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+table IrBatch {
+  commit_id: ulong;
+  timestamp_ms: double;
+  commands: [IrCommand];
+}
+
+root_type IrBatch;

@@ -1,0 +1,23 @@
+# Rust
+target/
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+*.d
+*.o
+*.so
+*.dylib
+*.dll

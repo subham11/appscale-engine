@@ -1,0 +1,23 @@
+[package]
+name = "appscale-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "AppScale CLI — Project scaffolding, dev server, and build tools"
+readme = "../README.md"
+
+[[bin]]
+name = "appscale"
+path = "src/main.rs"
+
+[dependencies]
+appscale-core = { path = "../rust-core", version = "0.1.0" }
+clap = { version = "4", features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
