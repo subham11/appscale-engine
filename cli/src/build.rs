@@ -19,6 +19,7 @@ use std::process::Command;
 pub struct BuildConfig {
     pub platform: String,
     pub release: bool,
+    pub simulator: bool,
     pub output_dir: String,
     /// Absolute path to the project root (where package.json lives).
     pub project_root: PathBuf,
@@ -35,6 +36,7 @@ impl BuildConfig {
 
     pub fn rust_target(&self) -> &str {
         match self.platform.as_str() {
+            "ios" if self.simulator => "aarch64-apple-ios-sim",
             "ios" => "aarch64-apple-ios",
             "android" => "aarch64-linux-android",
             "web" => "wasm32-unknown-unknown",
@@ -53,7 +55,7 @@ impl BuildConfig {
     }
 }
 
-pub fn run(platform: &str, release: bool, output: &str) -> Result<()> {
+pub fn run(platform: &str, release: bool, simulator: bool, output: &str) -> Result<()> {
     validate_platform(platform)?;
 
     let project_root = env::current_dir().context("Cannot determine current directory")?;
@@ -61,6 +63,7 @@ pub fn run(platform: &str, release: bool, output: &str) -> Result<()> {
     let config = BuildConfig {
         platform: platform.to_string(),
         release,
+        simulator,
         output_dir: output.to_string(),
         project_root,
     };
@@ -248,6 +251,83 @@ fn find_dylib(target_dir: &Path, rust_dir: &Path) -> Result<PathBuf> {
     )
 }
 
+fn find_staticlib(target_dir: &Path, rust_dir: &Path) -> Result<PathBuf> {
+    let cargo_toml = fs::read_to_string(rust_dir.join("Cargo.toml"))?;
+    let crate_name = cargo_toml
+        .lines()
+        .find(|l| l.starts_with("name"))
+        .and_then(|l| l.split('"').nth(1))
+        .unwrap_or("native")
+        .replace('-', "_");
+
+    let lib_name = format!("lib{crate_name}.a");
+    let lib = target_dir.join(&lib_name);
+    if lib.exists() {
+        return Ok(lib);
+    }
+    if let Ok(entries) = fs::read_dir(target_dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.extension().is_some_and(|e| e == "a") {
+                return Ok(p);
+            }
+        }
+    }
+    anyhow::bail!(
+        "Cannot find compiled staticlib in {}. Expected {}",
+        target_dir.display(),
+        lib_name
+    )
+}
+
+fn generate_ios_info_plist(name: &str, bundle_id: &str, version: &str) -> String {
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>{name}</string>
+    <key>CFBundleDisplayName</key>
+    <string>{name}</string>
+    <key>CFBundleIdentifier</key>
+    <string>{bundle_id}</string>
+    <key>CFBundleVersion</key>
+    <string>{version}</string>
+    <key>CFBundleShortVersionString</key>
+    <string>{version}</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>{name}</string>
+    <key>MinimumOSVersion</key>
+    <string>17.0</string>
+    <key>CFBundleSupportedPlatforms</key>
+    <array>
+        <string>iPhoneSimulator</string>
+    </array>
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+        <integer>2</integer>
+    </array>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+    </array>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>DTPlatformName</key>
+    <string>iphonesimulator</string>
+</dict>
+</plist>"#,
+        name = name,
+        bundle_id = bundle_id,
+        version = version,
+    )
+}
+
 fn generate_info_plist(name: &str, version: &str) -> String {
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -370,33 +450,36 @@ app.run()
 // ---------------------------------------------------------------------------
 
 fn build_ios(config: &BuildConfig) -> Result<()> {
-    println!("Building for iOS...");
+    let target_label = if config.simulator { "iOS Simulator" } else { "iOS" };
+    println!("Building for {target_label}...");
 
     let rust_dir = config.rust_dir();
     if !rust_dir.join("Cargo.toml").exists() {
         anyhow::bail!("No rust/Cargo.toml found. Run `appscale create` first.");
     }
 
+    let rust_target = config.rust_target();
+
     // Check for iOS target
     println!("  [1/4] Checking iOS toolchain");
     let has_target = Command::new("rustup")
         .args(["target", "list", "--installed"])
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).contains("aarch64-apple-ios"))
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains(rust_target))
         .unwrap_or(false);
 
     if !has_target {
-        println!("    Installing aarch64-apple-ios target...");
-        run_cmd(Command::new("rustup").args(["target", "add", "aarch64-apple-ios"]))?;
+        println!("    Installing {rust_target} target...");
+        run_cmd(Command::new("rustup").args(["target", "add", rust_target]))?;
     }
 
     // Compile Rust as static lib for iOS
-    println!("  [2/4] Compiling Rust → staticlib (aarch64-apple-ios)");
+    println!("  [2/4] Compiling Rust → staticlib ({rust_target})");
     let mut cargo = Command::new("cargo");
     cargo
         .arg("build")
         .arg("--target")
-        .arg("aarch64-apple-ios")
+        .arg(rust_target)
         .current_dir(&rust_dir);
     if config.release {
         cargo.arg("--release");
@@ -404,18 +487,104 @@ fn build_ios(config: &BuildConfig) -> Result<()> {
     run_cmd(&mut cargo)?;
     println!("    ✓ Rust compilation succeeded");
 
-    // Generate Xcode project
-    println!("  [3/4] Generating Xcode project");
     let name = app_name(config);
     let ios_dir = config.out_dir().join("ios");
+
+    if config.simulator {
+        build_ios_simulator(config, &name, &ios_dir, &rust_dir)
+    } else {
+        build_ios_device(config, &name, &ios_dir, &rust_dir)
+    }
+}
+
+/// Build a .app bundle that can be installed directly on the iOS Simulator
+/// using `xcrun simctl install`.
+fn build_ios_simulator(
+    config: &BuildConfig,
+    name: &str,
+    ios_dir: &Path,
+    rust_dir: &Path,
+) -> Result<()> {
+    // Create .app bundle structure
+    println!("  [3/4] Generating Swift source");
+    let app_bundle = ios_dir.join(format!("{name}.app"));
+    ensure_dir(&app_bundle)?;
+
+    let sources_dir = ios_dir.join("Sources");
+    ensure_dir(&sources_dir)?;
+
+    let swift_src = generate_ios_swift_host(name);
+    let swift_path = sources_dir.join("AppDelegate.swift");
+    fs::write(&swift_path, &swift_src)?;
+
+    // Info.plist for iOS Simulator
+    let bundle_id = format!("com.appscale.{}", name.to_lowercase().replace(' ', "-"));
+    let plist = generate_ios_info_plist(name, &bundle_id, "0.1.0");
+    fs::write(app_bundle.join("Info.plist"), plist)?;
+
+    // Compile Swift → binary targeting simulator
+    println!("  [4/4] Compiling Swift host for simulator");
+
+    // Get simulator SDK path
+    let sdk_output = Command::new("xcrun")
+        .args(["--sdk", "iphonesimulator", "--show-sdk-path"])
+        .output()
+        .context("Failed to run xcrun --sdk iphonesimulator --show-sdk-path")?;
+    let sdk_path = String::from_utf8_lossy(&sdk_output.stdout).trim().to_string();
+
+    // Find the staticlib
+    let profile_dir = if config.release { "release" } else { "debug" };
+    let rust_target = config.rust_target();
+    let staticlib = find_staticlib(
+        &rust_dir.join("target").join(rust_target).join(profile_dir),
+        rust_dir,
+    )?;
+
+    let exe_path = app_bundle.join(name);
+    let mut swiftc = Command::new("swiftc");
+    swiftc
+        .arg(&swift_path)
+        .arg("-o")
+        .arg(&exe_path)
+        .arg("-parse-as-library")
+        .arg("-target")
+        .arg("arm64-apple-ios17.0-simulator")
+        .arg("-sdk")
+        .arg(&sdk_path)
+        .arg("-framework")
+        .arg("UIKit")
+        .arg(&staticlib);
+    run_cmd(&mut swiftc)?;
+    println!("    ✓ Swift compilation succeeded");
+
+    println!();
+    println!("  ✅ Simulator build succeeded!");
+    println!("  Output: {}", app_bundle.display());
+    println!();
+    println!("  Install on simulator:");
+    println!("    xcrun simctl install booted {}", app_bundle.display());
+    println!("    xcrun simctl launch booted {bundle_id}");
+
+    Ok(())
+}
+
+/// Build for a physical iOS device via Xcode project.
+fn build_ios_device(
+    config: &BuildConfig,
+    name: &str,
+    ios_dir: &Path,
+    _rust_dir: &Path,
+) -> Result<()> {
+    // Generate Xcode project
+    println!("  [3/4] Generating Xcode project");
     let xcodeproj = ios_dir.join(format!("{name}.xcodeproj"));
     ensure_dir(&xcodeproj)?;
     ensure_dir(&ios_dir.join("Sources"))?;
 
-    let swift_src = generate_ios_swift_host(&name);
+    let swift_src = generate_ios_swift_host(name);
     fs::write(ios_dir.join("Sources/AppDelegate.swift"), &swift_src)?;
 
-    let pbxproj = generate_ios_pbxproj(&name);
+    let pbxproj = generate_ios_pbxproj(name);
     fs::write(xcodeproj.join("project.pbxproj"), pbxproj)?;
 
     println!("    ✓ Xcode project at {}", xcodeproj.display());
@@ -426,9 +595,9 @@ fn build_ios(config: &BuildConfig) -> Result<()> {
         .arg("-project")
         .arg(&xcodeproj)
         .arg("-scheme")
-        .arg(&name)
+        .arg(name)
         .arg("-sdk")
-        .arg("iphonesimulator")
+        .arg("iphoneos")
         .arg("-configuration")
         .arg(if config.release { "Release" } else { "Debug" })
         .arg("build")

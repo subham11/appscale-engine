@@ -52,6 +52,10 @@ enum Commands {
         #[arg(long)]
         release: bool,
 
+        /// Build for iOS Simulator instead of device
+        #[arg(long)]
+        simulator: bool,
+
         /// Output directory
         #[arg(short, long, default_value = "dist")]
         output: String,
@@ -67,7 +71,8 @@ fn main() -> Result<()> {
         Commands::Build {
             platform,
             release,
+            simulator,
             output,
-        } => build::run(&platform, release, &output),
+        } => build::run(&platform, release, simulator, &output),
     }
 }
