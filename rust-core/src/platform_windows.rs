@@ -12,8 +12,8 @@
 
 use crate::platform::*;
 use crate::tree::NodeId;
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// Windows platform bridge.
 ///
@@ -38,7 +38,10 @@ impl WindowsPlatform {
             next_handle: Mutex::new(1),
             views: Mutex::new(HashMap::new()),
             // Default: 1080p logical resolution at 150% scaling
-            screen: ScreenSize { width: 1280.0, height: 720.0 },
+            screen: ScreenSize {
+                width: 1280.0,
+                height: 720.0,
+            },
             scale: 1.5,
         }
     }
@@ -55,7 +58,9 @@ impl WindowsPlatform {
 }
 
 impl Default for WindowsPlatform {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PlatformBridge for WindowsPlatform {
@@ -68,11 +73,14 @@ impl PlatformBridge for WindowsPlatform {
         let handle = NativeHandle(*h);
         *h += 1;
 
-        self.views.lock().unwrap().insert(handle.0, ViewRecord {
-            _view_type: view_type,
-            _node_id: node_id,
-            children: Vec::new(),
-        });
+        self.views.lock().unwrap().insert(
+            handle.0,
+            ViewRecord {
+                _view_type: view_type,
+                _node_id: node_id,
+                children: Vec::new(),
+            },
+        );
 
         handle
     }
@@ -136,14 +144,15 @@ impl PlatformBridge for WindowsPlatform {
     }
 
     fn supports(&self, capability: PlatformCapability) -> bool {
-        matches!(capability,
+        matches!(
+            capability,
             PlatformCapability::SystemTray
-            | PlatformCapability::MultiWindow
-            | PlatformCapability::DragAndDrop
-            | PlatformCapability::ContextMenu
-            | PlatformCapability::NativeFilePicker
-            | PlatformCapability::NativeDatePicker
-            | PlatformCapability::PushNotifications
+                | PlatformCapability::MultiWindow
+                | PlatformCapability::DragAndDrop
+                | PlatformCapability::ContextMenu
+                | PlatformCapability::NativeFilePicker
+                | PlatformCapability::NativeDatePicker
+                | PlatformCapability::PushNotifications
         )
     }
 }
@@ -174,7 +183,7 @@ mod tests {
         assert!(platform.supports(PlatformCapability::MultiWindow));
         assert!(platform.supports(PlatformCapability::DragAndDrop));
         assert!(platform.supports(PlatformCapability::PushNotifications));
-        assert!(!platform.supports(PlatformCapability::MenuBar));  // Windows doesn't have macOS-style menu bar
+        assert!(!platform.supports(PlatformCapability::MenuBar)); // Windows doesn't have macOS-style menu bar
         assert!(!platform.supports(PlatformCapability::Haptics));
     }
 
@@ -198,7 +207,10 @@ mod tests {
     #[test]
     fn test_windows_text_measurement() {
         let platform = WindowsPlatform::new();
-        let style = TextStyle { font_size: Some(16.0), ..TextStyle::default() };
+        let style = TextStyle {
+            font_size: Some(16.0),
+            ..TextStyle::default()
+        };
         let metrics = platform.measure_text("Hello Windows", &style, 200.0);
         assert!(metrics.width > 0.0);
         assert!(metrics.height > 0.0);

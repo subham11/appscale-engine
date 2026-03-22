@@ -4,10 +4,10 @@
 //! for every node. It runs on a background thread (layout can be expensive)
 //! and produces a LayoutResult that the mount phase consumes.
 
-use crate::tree::{NodeId, ShadowTree};
 use crate::platform::PlatformBridge;
+use crate::tree::{NodeId, ShadowTree};
 use rustc_hash::FxHashMap;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use taffy::prelude::*;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -58,31 +58,76 @@ pub struct LayoutStyle {
     pub overflow: Overflow,
 }
 
-fn default_flex_shrink() -> f32 { 1.0 }
+fn default_flex_shrink() -> f32 {
+    1.0
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub enum Display { #[default] Flex, Grid, None }
+pub enum Display {
+    #[default]
+    Flex,
+    Grid,
+    None,
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub enum Position { #[default] Relative, Absolute }
+pub enum Position {
+    #[default]
+    Relative,
+    Absolute,
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub enum FlexDirection { #[default] Column, Row, ColumnReverse, RowReverse }
+pub enum FlexDirection {
+    #[default]
+    Column,
+    Row,
+    ColumnReverse,
+    RowReverse,
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub enum FlexWrap { #[default] NoWrap, Wrap, WrapReverse }
+pub enum FlexWrap {
+    #[default]
+    NoWrap,
+    Wrap,
+    WrapReverse,
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum JustifyContent { FlexStart, FlexEnd, Center, SpaceBetween, SpaceAround, SpaceEvenly }
+pub enum JustifyContent {
+    FlexStart,
+    FlexEnd,
+    Center,
+    SpaceBetween,
+    SpaceAround,
+    SpaceEvenly,
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum AlignItems { FlexStart, FlexEnd, Center, Stretch, Baseline }
+pub enum AlignItems {
+    FlexStart,
+    FlexEnd,
+    Center,
+    Stretch,
+    Baseline,
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub enum Dimension { #[default] Auto, Points(f32), Percent(f32) }
+pub enum Dimension {
+    #[default]
+    Auto,
+    Points(f32),
+    Percent(f32),
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub enum Overflow { #[default] Visible, Hidden, Scroll }
+pub enum Overflow {
+    #[default]
+    Visible,
+    Hidden,
+    Scroll,
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct Edges {
@@ -116,6 +161,12 @@ pub struct LayoutEngine {
     root: Option<NodeId>,
 }
 
+impl Default for LayoutEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LayoutEngine {
     pub fn new() -> Self {
         Self {
@@ -132,7 +183,8 @@ impl LayoutEngine {
 
     pub fn create_node(&mut self, id: NodeId, style: &LayoutStyle) -> Result<(), LayoutError> {
         let taffy_style = convert_style(style);
-        let taffy_node = self.taffy
+        let taffy_node = self
+            .taffy
             .new_leaf_with_context(taffy_style, id)
             .map_err(|e| LayoutError::TaffyError(format!("{e}")))?;
         self.node_map.insert(id, taffy_node);
@@ -140,10 +192,13 @@ impl LayoutEngine {
     }
 
     pub fn update_style(&mut self, id: NodeId, style: &LayoutStyle) -> Result<(), LayoutError> {
-        let taffy_node = self.node_map.get(&id)
+        let taffy_node = self
+            .node_map
+            .get(&id)
             .ok_or(LayoutError::NodeNotFound(id))?;
         let taffy_style = convert_style(style);
-        self.taffy.set_style(*taffy_node, taffy_style)
+        self.taffy
+            .set_style(*taffy_node, taffy_style)
             .map_err(|e| LayoutError::TaffyError(format!("{e}")))?;
         Ok(())
     }
@@ -161,15 +216,19 @@ impl LayoutEngine {
         parent_id: NodeId,
         tree: &ShadowTree,
     ) -> Result<(), LayoutError> {
-        let parent_taffy = *self.node_map.get(&parent_id)
+        let parent_taffy = *self
+            .node_map
+            .get(&parent_id)
             .ok_or(LayoutError::NodeNotFound(parent_id))?;
 
-        let children: Vec<taffy::NodeId> = tree.children_of(parent_id)
+        let children: Vec<taffy::NodeId> = tree
+            .children_of(parent_id)
             .iter()
             .filter_map(|id| self.node_map.get(id).copied())
             .collect();
 
-        self.taffy.set_children(parent_taffy, &children)
+        self.taffy
+            .set_children(parent_taffy, &children)
             .map_err(|e| LayoutError::TaffyError(format!("{e}")))?;
         Ok(())
     }
@@ -183,7 +242,9 @@ impl LayoutEngine {
         platform: &dyn PlatformBridge,
     ) -> Result<(), LayoutError> {
         let root_id = self.root.ok_or(LayoutError::NoRoot)?;
-        let root_taffy = *self.node_map.get(&root_id)
+        let root_taffy = *self
+            .node_map
+            .get(&root_id)
             .ok_or(LayoutError::NodeNotFound(root_id))?;
 
         let available = taffy::Size {
@@ -192,35 +253,39 @@ impl LayoutEngine {
         };
 
         // Compute with text measurement callback
-        self.taffy.compute_layout_with_measure(
-            root_taffy,
-            available,
-            |_known_dims, available_space, _node_id, node_context, _style| {
-                if let Some(framework_id) = node_context {
-                    // Check if this is a Text node that needs measurement
-                    if let Some(node) = tree.get(*framework_id) {
-                        if node.view_type == crate::platform::ViewType::Text {
-                            if let Some(crate::platform::PropValue::String(text)) = node.props.get("text") {
-                                let max_w = match available_space.width {
-                                    AvailableSpace::Definite(w) => w,
-                                    _ => f32::INFINITY,
-                                };
-                                let metrics = platform.measure_text(
-                                    text,
-                                    &crate::platform::TextStyle::default(),
-                                    max_w,
-                                );
-                                return taffy::Size {
-                                    width: metrics.width,
-                                    height: metrics.height,
-                                };
+        self.taffy
+            .compute_layout_with_measure(
+                root_taffy,
+                available,
+                |_known_dims, available_space, _node_id, node_context, _style| {
+                    if let Some(framework_id) = node_context {
+                        // Check if this is a Text node that needs measurement
+                        if let Some(node) = tree.get(*framework_id) {
+                            if node.view_type == crate::platform::ViewType::Text {
+                                if let Some(crate::platform::PropValue::String(text)) =
+                                    node.props.get("text")
+                                {
+                                    let max_w = match available_space.width {
+                                        AvailableSpace::Definite(w) => w,
+                                        _ => f32::INFINITY,
+                                    };
+                                    let metrics = platform.measure_text(
+                                        text,
+                                        &crate::platform::TextStyle::default(),
+                                        max_w,
+                                    );
+                                    return taffy::Size {
+                                        width: metrics.width,
+                                        height: metrics.height,
+                                    };
+                                }
                             }
                         }
                     }
-                }
-                taffy::Size::ZERO
-            },
-        ).map_err(|e| LayoutError::TaffyError(format!("{e}")))?;
+                    taffy::Size::ZERO
+                },
+            )
+            .map_err(|e| LayoutError::TaffyError(format!("{e}")))?;
 
         // Collect computed layouts with absolute positions
         self.computed.clear();
@@ -236,12 +301,15 @@ impl LayoutEngine {
 
         let framework_id = self.taffy.get_node_context(node).copied();
         if let Some(fid) = framework_id {
-            self.computed.insert(fid, ComputedLayout {
-                x: abs_x,
-                y: abs_y,
-                width: layout.size.width,
-                height: layout.size.height,
-            });
+            self.computed.insert(
+                fid,
+                ComputedLayout {
+                    x: abs_x,
+                    y: abs_y,
+                    width: layout.size.width,
+                    height: layout.size.height,
+                },
+            );
         }
 
         let children = self.taffy.children(node).unwrap();
@@ -258,10 +326,14 @@ impl LayoutEngine {
     /// Hit test: find nodes at a given screen coordinate.
     /// Returns nodes sorted by specificity (smallest area first).
     pub fn hit_test(&self, x: f32, y: f32) -> Vec<NodeId> {
-        let mut hits: Vec<(NodeId, f32)> = self.computed.iter()
+        let mut hits: Vec<(NodeId, f32)> = self
+            .computed
+            .iter()
             .filter(|(_, layout)| {
-                x >= layout.x && x <= layout.x + layout.width &&
-                y >= layout.y && y <= layout.y + layout.height
+                x >= layout.x
+                    && x <= layout.x + layout.width
+                    && y >= layout.y
+                    && y <= layout.y + layout.height
             })
             .map(|(&id, layout)| (id, layout.width * layout.height))
             .collect();
@@ -411,17 +483,27 @@ mod tests {
         tree.set_root(NodeId(1));
         tree.append_child(NodeId(1), NodeId(2));
 
-        layout.create_node(NodeId(1), &LayoutStyle {
-            width: Dimension::Points(390.0),
-            height: Dimension::Points(844.0),
-            ..Default::default()
-        }).unwrap();
+        layout
+            .create_node(
+                NodeId(1),
+                &LayoutStyle {
+                    width: Dimension::Points(390.0),
+                    height: Dimension::Points(844.0),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
 
-        layout.create_node(NodeId(2), &LayoutStyle {
-            width: Dimension::Points(100.0),
-            height: Dimension::Points(50.0),
-            ..Default::default()
-        }).unwrap();
+        layout
+            .create_node(
+                NodeId(2),
+                &LayoutStyle {
+                    width: Dimension::Points(100.0),
+                    height: Dimension::Points(50.0),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
 
         layout.set_root(NodeId(1));
         layout.set_children_from_tree(NodeId(1), &tree).unwrap();
@@ -480,8 +562,14 @@ mod tests {
 
         // Deepest node should still have computed layout
         let deepest = layout.get_computed(NodeId(depth as u64)).unwrap();
-        assert!(deepest.width > 0.0, "Deepest node should have non-zero width");
-        assert!(deepest.height > 0.0, "Deepest node should have non-zero height");
+        assert!(
+            deepest.width > 0.0,
+            "Deepest node should have non-zero width"
+        );
+        assert!(
+            deepest.height > 0.0,
+            "Deepest node should have non-zero height"
+        );
     }
 
     #[test]
@@ -493,23 +581,33 @@ mod tests {
         let child_count = 200u64;
 
         tree.create_node(NodeId(1), ViewType::Container, HashMap::new());
-        layout.create_node(NodeId(1), &LayoutStyle {
-            width: Dimension::Points(1000.0),
-            height: Dimension::Points(100.0),
-            flex_direction: FlexDirection::Row,
-            ..Default::default()
-        }).unwrap();
+        layout
+            .create_node(
+                NodeId(1),
+                &LayoutStyle {
+                    width: Dimension::Points(1000.0),
+                    height: Dimension::Points(100.0),
+                    flex_direction: FlexDirection::Row,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
 
         tree.set_root(NodeId(1));
         layout.set_root(NodeId(1));
 
         for i in 2..=(child_count + 1) {
             tree.create_node(NodeId(i), ViewType::Container, HashMap::new());
-            layout.create_node(NodeId(i), &LayoutStyle {
-                width: Dimension::Points(5.0),
-                height: Dimension::Points(20.0),
-                ..Default::default()
-            }).unwrap();
+            layout
+                .create_node(
+                    NodeId(i),
+                    &LayoutStyle {
+                        width: Dimension::Points(5.0),
+                        height: Dimension::Points(20.0),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
             tree.append_child(NodeId(1), NodeId(i));
         }
 
@@ -525,7 +623,10 @@ mod tests {
         // Children should be positioned left-to-right
         let first = layout.get_computed(NodeId(2)).unwrap();
         let second = layout.get_computed(NodeId(3)).unwrap();
-        assert!(second.x > first.x, "Second child should be to the right of first");
+        assert!(
+            second.x > first.x,
+            "Second child should be to the right of first"
+        );
     }
 
     #[test]
@@ -537,20 +638,30 @@ mod tests {
 
         // Initial tree: root with 10 children
         tree.create_node(NodeId(1), ViewType::Container, HashMap::new());
-        layout.create_node(NodeId(1), &LayoutStyle {
-            width: Dimension::Points(400.0),
-            height: Dimension::Points(800.0),
-            ..Default::default()
-        }).unwrap();
+        layout
+            .create_node(
+                NodeId(1),
+                &LayoutStyle {
+                    width: Dimension::Points(400.0),
+                    height: Dimension::Points(800.0),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         tree.set_root(NodeId(1));
         layout.set_root(NodeId(1));
 
         for i in 2..=11u64 {
             tree.create_node(NodeId(i), ViewType::Container, HashMap::new());
-            layout.create_node(NodeId(i), &LayoutStyle {
-                height: Dimension::Points(50.0),
-                ..Default::default()
-            }).unwrap();
+            layout
+                .create_node(
+                    NodeId(i),
+                    &LayoutStyle {
+                        height: Dimension::Points(50.0),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
             tree.append_child(NodeId(1), NodeId(i));
         }
         layout.set_children_from_tree(NodeId(1), &tree).unwrap();
@@ -569,10 +680,15 @@ mod tests {
         // Add new children with different styles
         for i in 100..=104u64 {
             tree.create_node(NodeId(i), ViewType::Container, HashMap::new());
-            layout.create_node(NodeId(i), &LayoutStyle {
-                height: Dimension::Points(30.0),
-                ..Default::default()
-            }).unwrap();
+            layout
+                .create_node(
+                    NodeId(i),
+                    &LayoutStyle {
+                        height: Dimension::Points(30.0),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
             tree.append_child(NodeId(1), NodeId(i));
         }
         layout.set_children_from_tree(NodeId(1), &tree).unwrap();
@@ -593,38 +709,58 @@ mod tests {
         let mut layout = LayoutEngine::new();
 
         tree.create_node(NodeId(1), ViewType::Container, HashMap::new());
-        layout.create_node(NodeId(1), &LayoutStyle {
-            width: Dimension::Points(400.0),
-            height: Dimension::Points(600.0),
-            ..Default::default()
-        }).unwrap();
+        layout
+            .create_node(
+                NodeId(1),
+                &LayoutStyle {
+                    width: Dimension::Points(400.0),
+                    height: Dimension::Points(600.0),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         tree.set_root(NodeId(1));
         layout.set_root(NodeId(1));
 
         // Child 1: fixed 100x100
         tree.create_node(NodeId(2), ViewType::Container, HashMap::new());
-        layout.create_node(NodeId(2), &LayoutStyle {
-            width: Dimension::Points(100.0),
-            height: Dimension::Points(100.0),
-            ..Default::default()
-        }).unwrap();
+        layout
+            .create_node(
+                NodeId(2),
+                &LayoutStyle {
+                    width: Dimension::Points(100.0),
+                    height: Dimension::Points(100.0),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         tree.append_child(NodeId(1), NodeId(2));
 
         // Child 2: 50% width, fixed height
         tree.create_node(NodeId(3), ViewType::Container, HashMap::new());
-        layout.create_node(NodeId(3), &LayoutStyle {
-            width: Dimension::Percent(50.0),
-            height: Dimension::Points(80.0),
-            ..Default::default()
-        }).unwrap();
+        layout
+            .create_node(
+                NodeId(3),
+                &LayoutStyle {
+                    width: Dimension::Percent(50.0),
+                    height: Dimension::Points(80.0),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         tree.append_child(NodeId(1), NodeId(3));
 
         // Child 3: flex-grow
         tree.create_node(NodeId(4), ViewType::Container, HashMap::new());
-        layout.create_node(NodeId(4), &LayoutStyle {
-            flex_grow: 1.0,
-            ..Default::default()
-        }).unwrap();
+        layout
+            .create_node(
+                NodeId(4),
+                &LayoutStyle {
+                    flex_grow: 1.0,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         tree.append_child(NodeId(1), NodeId(4));
 
         layout.set_children_from_tree(NodeId(1), &tree).unwrap();

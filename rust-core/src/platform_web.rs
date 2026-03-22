@@ -13,8 +13,8 @@
 
 use crate::platform::*;
 use crate::tree::NodeId;
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// Web platform bridge.
 ///
@@ -39,7 +39,10 @@ impl WebPlatform {
             next_handle: Mutex::new(1),
             views: Mutex::new(HashMap::new()),
             // Default: common 1080p browser viewport
-            screen: ScreenSize { width: 1920.0, height: 1080.0 },
+            screen: ScreenSize {
+                width: 1920.0,
+                height: 1080.0,
+            },
             scale: 1.0,
         }
     }
@@ -56,7 +59,9 @@ impl WebPlatform {
 }
 
 impl Default for WebPlatform {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PlatformBridge for WebPlatform {
@@ -69,11 +74,14 @@ impl PlatformBridge for WebPlatform {
         let handle = NativeHandle(*h);
         *h += 1;
 
-        self.views.lock().unwrap().insert(handle.0, ViewRecord {
-            _view_type: view_type,
-            _node_id: node_id,
-            children: Vec::new(),
-        });
+        self.views.lock().unwrap().insert(
+            handle.0,
+            ViewRecord {
+                _view_type: view_type,
+                _node_id: node_id,
+                children: Vec::new(),
+            },
+        );
 
         handle
     }
@@ -138,11 +146,12 @@ impl PlatformBridge for WebPlatform {
     }
 
     fn supports(&self, capability: PlatformCapability) -> bool {
-        matches!(capability,
+        matches!(
+            capability,
             PlatformCapability::DragAndDrop
             | PlatformCapability::NativeShare       // Web Share API
             | PlatformCapability::ContextMenu
-            | PlatformCapability::NativeFilePicker  // <input type="file">
+            | PlatformCapability::NativeFilePicker // <input type="file">
         )
     }
 }
@@ -214,7 +223,10 @@ mod tests {
     #[test]
     fn test_web_text_measurement() {
         let platform = WebPlatform::new();
-        let style = TextStyle { font_size: Some(16.0), ..TextStyle::default() };
+        let style = TextStyle {
+            font_size: Some(16.0),
+            ..TextStyle::default()
+        };
         let metrics = platform.measure_text("Hello Web", &style, 200.0);
         assert!(metrics.width > 0.0);
         assert!(metrics.height > 0.0);
@@ -224,8 +236,15 @@ mod tests {
     #[test]
     fn test_web_text_wrapping() {
         let platform = WebPlatform::new();
-        let style = TextStyle { font_size: Some(16.0), ..TextStyle::default() };
-        let metrics = platform.measure_text("This is a longer text that should wrap in browser", &style, 50.0);
+        let style = TextStyle {
+            font_size: Some(16.0),
+            ..TextStyle::default()
+        };
+        let metrics = platform.measure_text(
+            "This is a longer text that should wrap in browser",
+            &style,
+            50.0,
+        );
         assert!(metrics.line_count > 1);
         assert_eq!(metrics.width, 50.0);
     }

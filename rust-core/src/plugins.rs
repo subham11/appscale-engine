@@ -11,9 +11,9 @@
 //! Plugins wrap `NativeModule`s with package-level metadata so the framework
 //! can manage them as first-class ecosystem citizens.
 
-use crate::modules::{NativeModule, ModuleRegistry, ModuleError};
 use crate::cloud::BuildTarget;
-use serde::{Serialize, Deserialize};
+use crate::modules::{ModuleError, ModuleRegistry, NativeModule};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -30,10 +30,17 @@ pub enum PluginError {
     AlreadyInstalled(String, String),
 
     #[error("Incompatible plugin: {plugin} requires engine >={required}, have {current}")]
-    IncompatibleEngine { plugin: String, required: String, current: String },
+    IncompatibleEngine {
+        plugin: String,
+        required: String,
+        current: String,
+    },
 
     #[error("Platform not supported: {plugin} does not support {platform:?}")]
-    PlatformNotSupported { plugin: String, platform: BuildTarget },
+    PlatformNotSupported {
+        plugin: String,
+        platform: BuildTarget,
+    },
 
     #[error("Missing dependency: {plugin} requires {dependency}")]
     MissingDependency { plugin: String, dependency: String },
@@ -61,7 +68,11 @@ pub struct PluginVersion {
 
 impl PluginVersion {
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 
     /// Check if this version satisfies a minimum version requirement.
@@ -163,13 +174,19 @@ pub fn validate_descriptor(desc: &PluginDescriptor) -> PluginResult<()> {
         return Err(PluginError::Internal("Plugin name is required".into()));
     }
     if desc.description.is_empty() {
-        return Err(PluginError::Internal("Plugin description is required".into()));
+        return Err(PluginError::Internal(
+            "Plugin description is required".into(),
+        ));
     }
     if desc.supported_platforms.is_empty() {
-        return Err(PluginError::Internal("At least one supported platform is required".into()));
+        return Err(PluginError::Internal(
+            "At least one supported platform is required".into(),
+        ));
     }
     if desc.capabilities.is_empty() {
-        return Err(PluginError::Internal("At least one capability is required".into()));
+        return Err(PluginError::Internal(
+            "At least one capability is required".into(),
+        ));
     }
     Ok(())
 }
@@ -227,7 +244,9 @@ impl PluginRegistry {
         }
 
         // Check dependencies
-        let installed_versions: HashMap<String, PluginVersion> = self.plugins.iter()
+        let installed_versions: HashMap<String, PluginVersion> = self
+            .plugins
+            .iter()
             .map(|(k, v)| (k.clone(), v.descriptor.version.clone()))
             .collect();
         let missing = descriptor.check_dependencies(&installed_versions);
@@ -244,11 +263,14 @@ impl PluginRegistry {
         }
 
         let name = descriptor.name.clone();
-        self.plugins.insert(name, InstalledPlugin {
-            descriptor,
-            module,
-            enabled: true,
-        });
+        self.plugins.insert(
+            name,
+            InstalledPlugin {
+                descriptor,
+                module,
+                enabled: true,
+            },
+        );
 
         Ok(())
     }
@@ -256,16 +278,21 @@ impl PluginRegistry {
     /// Uninstall a plugin by name.
     pub fn uninstall(&mut self, name: &str) -> PluginResult<()> {
         // Check no other plugin depends on this one before removing
-        let dependent = self.plugins.iter()
+        let dependent = self
+            .plugins
+            .iter()
             .find(|(_, other)| other.descriptor.dependencies.iter().any(|d| d.name == name))
             .map(|(n, _)| n.clone());
         if let Some(dep_name) = dependent {
-            return Err(PluginError::Internal(
-                format!("Cannot uninstall '{}': required by '{}'", name, dep_name),
-            ));
+            return Err(PluginError::Internal(format!(
+                "Cannot uninstall '{}': required by '{}'",
+                name, dep_name
+            )));
         }
 
-        let plugin = self.plugins.remove(name)
+        let plugin = self
+            .plugins
+            .remove(name)
             .ok_or_else(|| PluginError::NotFound(name.into()))?;
 
         // Unregister native module
@@ -278,7 +305,9 @@ impl PluginRegistry {
 
     /// Enable or disable a plugin.
     pub fn set_enabled(&mut self, name: &str, enabled: bool) -> PluginResult<()> {
-        let plugin = self.plugins.get_mut(name)
+        let plugin = self
+            .plugins
+            .get_mut(name)
             .ok_or_else(|| PluginError::NotFound(name.into()))?;
         plugin.enabled = enabled;
         Ok(())
@@ -301,7 +330,8 @@ impl PluginRegistry {
 
     /// List enabled plugins.
     pub fn enabled_plugins(&self) -> Vec<&PluginDescriptor> {
-        self.plugins.values()
+        self.plugins
+            .values()
             .filter(|p| p.enabled)
             .map(|p| &p.descriptor)
             .collect()
@@ -322,7 +352,8 @@ impl PluginRegistry {
     /// Search plugins by keyword (matches name, description, keywords).
     pub fn search(&self, query: &str) -> Vec<&PluginDescriptor> {
         let q = query.to_lowercase();
-        self.plugins.values()
+        self.plugins
+            .values()
             .map(|p| &p.descriptor)
             .filter(|d| {
                 d.name.to_lowercase().contains(&q)
@@ -334,7 +365,8 @@ impl PluginRegistry {
 
     /// Filter plugins by category.
     pub fn by_category(&self, category: &PluginCategory) -> Vec<&PluginDescriptor> {
-        self.plugins.values()
+        self.plugins
+            .values()
             .map(|p| &p.descriptor)
             .filter(|d| d.category == *category)
             .collect()
@@ -342,7 +374,8 @@ impl PluginRegistry {
 
     /// Filter plugins by platform support.
     pub fn by_platform(&self, target: &BuildTarget) -> Vec<&PluginDescriptor> {
-        self.plugins.values()
+        self.plugins
+            .values()
             .map(|p| &p.descriptor)
             .filter(|d| d.supports_platform(target))
             .collect()
@@ -350,7 +383,8 @@ impl PluginRegistry {
 
     /// Filter plugins by capability.
     pub fn by_capability(&self, cap: &PluginCapability) -> Vec<&PluginDescriptor> {
-        self.plugins.values()
+        self.plugins
+            .values()
             .map(|p| &p.descriptor)
             .filter(|d| d.capabilities.contains(cap))
             .collect()
@@ -367,9 +401,13 @@ mod tests {
     use crate::modules::{MethodDescriptor, ModuleArg, ModuleResult, ModuleValue};
 
     // ── Test module ──
-    struct TestModule { name: String }
+    struct TestModule {
+        name: String,
+    }
     impl NativeModule for TestModule {
-        fn name(&self) -> &str { &self.name }
+        fn name(&self) -> &str {
+            &self.name
+        }
         fn methods(&self) -> Vec<MethodDescriptor> {
             vec![MethodDescriptor::sync("ping", "returns pong")]
         }
@@ -377,7 +415,8 @@ mod tests {
             match method {
                 "ping" => Ok(ModuleValue::String("pong".into())),
                 _ => Err(ModuleError::MethodNotFound {
-                    module: self.name.clone(), method: method.into(),
+                    module: self.name.clone(),
+                    method: method.into(),
                 }),
             }
         }
@@ -487,7 +526,9 @@ mod tests {
     fn test_install_plugin_with_module() {
         let mut registry = PluginRegistry::new(PluginVersion::new(1, 0, 0));
         let desc = test_descriptor("Camera");
-        let module = Arc::new(TestModule { name: "Camera".into() }) as Arc<dyn NativeModule>;
+        let module = Arc::new(TestModule {
+            name: "Camera".into(),
+        }) as Arc<dyn NativeModule>;
         assert!(registry.install(desc, Some(module)).is_ok());
         assert!(registry.module_registry().has("Camera"));
     }
@@ -534,7 +575,9 @@ mod tests {
     #[test]
     fn test_uninstall_plugin() {
         let mut registry = PluginRegistry::new(PluginVersion::new(1, 0, 0));
-        registry.install(test_descriptor("Removable"), None).unwrap();
+        registry
+            .install(test_descriptor("Removable"), None)
+            .unwrap();
         assert!(registry.uninstall("Removable").is_ok());
         assert!(!registry.is_installed("Removable"));
     }
@@ -575,7 +618,9 @@ mod tests {
         let mut registry = PluginRegistry::new(PluginVersion::new(1, 0, 0));
         registry.install(test_descriptor("Camera"), None).unwrap();
         registry.install(test_descriptor("Storage"), None).unwrap();
-        registry.install(test_descriptor("CameraRoll"), None).unwrap();
+        registry
+            .install(test_descriptor("CameraRoll"), None)
+            .unwrap();
 
         let results = registry.search("camera");
         assert_eq!(results.len(), 2);
@@ -618,7 +663,9 @@ mod tests {
         ios_only.supported_platforms = vec![BuildTarget::Ios];
         registry.install(ios_only, None).unwrap();
 
-        registry.install(test_descriptor("Universal"), None).unwrap();
+        registry
+            .install(test_descriptor("Universal"), None)
+            .unwrap();
 
         assert_eq!(registry.by_platform(&BuildTarget::Ios).len(), 2);
         assert_eq!(registry.by_platform(&BuildTarget::Android).len(), 1); // Universal only
@@ -635,7 +682,12 @@ mod tests {
         registry.install(test_descriptor("Module"), None).unwrap();
 
         assert_eq!(registry.by_capability(&PluginCapability::Theme).len(), 1);
-        assert_eq!(registry.by_capability(&PluginCapability::NativeModule).len(), 1);
+        assert_eq!(
+            registry
+                .by_capability(&PluginCapability::NativeModule)
+                .len(),
+            1
+        );
     }
 
     // ── Serialization ──

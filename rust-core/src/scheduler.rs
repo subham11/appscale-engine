@@ -18,7 +18,7 @@
 
 use crate::ir::IrBatch;
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex, Condvar};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 /// Frame budget: 16.67ms for 60fps, 8.33ms for 120fps.
@@ -82,6 +82,12 @@ pub struct FrameStats {
     pub frames_dropped: u32,
 }
 
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scheduler {
     pub fn new() -> Self {
         Self {
@@ -111,7 +117,8 @@ impl Scheduler {
             let mut queue = self.queue.lock().unwrap();
 
             // Insert in priority order (highest priority = lowest ordinal = front)
-            let pos = queue.iter()
+            let pos = queue
+                .iter()
                 .position(|existing| existing.priority > priority)
                 .unwrap_or(queue.len());
             queue.insert(pos, item);

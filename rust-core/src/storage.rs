@@ -14,7 +14,7 @@
 //! - `StorageBackend` is `Send + Sync` for safe sharing across threads
 //! - Secure storage uses a separate trait method set with explicit domain tagging
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -105,23 +105,33 @@ impl StorageValue {
 }
 
 impl From<String> for StorageValue {
-    fn from(s: String) -> Self { StorageValue::String(s) }
+    fn from(s: String) -> Self {
+        StorageValue::String(s)
+    }
 }
 
 impl From<&str> for StorageValue {
-    fn from(s: &str) -> Self { StorageValue::String(s.to_string()) }
+    fn from(s: &str) -> Self {
+        StorageValue::String(s.to_string())
+    }
 }
 
 impl From<bool> for StorageValue {
-    fn from(b: bool) -> Self { StorageValue::Bool(b) }
+    fn from(b: bool) -> Self {
+        StorageValue::Bool(b)
+    }
 }
 
 impl From<i64> for StorageValue {
-    fn from(i: i64) -> Self { StorageValue::Int(i) }
+    fn from(i: i64) -> Self {
+        StorageValue::Int(i)
+    }
 }
 
 impl From<f64> for StorageValue {
-    fn from(f: f64) -> Self { StorageValue::Float(f) }
+    fn from(f: f64) -> Self {
+        StorageValue::Float(f)
+    }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -139,15 +149,23 @@ impl StorageNamespace {
     }
 
     /// Default namespace for app data.
-    pub fn app_data() -> Self { Self("app_data".to_string()) }
+    pub fn app_data() -> Self {
+        Self("app_data".to_string())
+    }
 
     /// Namespace for user preferences.
-    pub fn preferences() -> Self { Self("preferences".to_string()) }
+    pub fn preferences() -> Self {
+        Self("preferences".to_string())
+    }
 
     /// Namespace for cache data (can be cleared by system).
-    pub fn cache() -> Self { Self("cache".to_string()) }
+    pub fn cache() -> Self {
+        Self("cache".to_string())
+    }
 
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 
     /// Build a namespaced key: "namespace:key"
     pub fn prefixed_key(&self, key: &str) -> String {
@@ -156,7 +174,9 @@ impl StorageNamespace {
 }
 
 impl Default for StorageNamespace {
-    fn default() -> Self { Self::app_data() }
+    fn default() -> Self {
+        Self::app_data()
+    }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -179,7 +199,12 @@ pub trait StorageBackend: Send + Sync {
     fn get(&self, namespace: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>>;
 
     /// Set a value by key within a namespace.
-    fn set(&self, namespace: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()>;
+    fn set(
+        &self,
+        namespace: &StorageNamespace,
+        key: &str,
+        value: StorageValue,
+    ) -> StorageResult<()>;
 
     /// Delete a key within a namespace.
     fn delete(&self, namespace: &StorageNamespace, key: &str) -> StorageResult<()>;
@@ -198,7 +223,9 @@ pub trait StorageBackend: Send + Sync {
     // ── Secure Storage ─────────────────────────────────
 
     /// Whether this platform supports secure storage (Keychain, Keystore, etc.).
-    fn supports_secure(&self) -> bool { false }
+    fn supports_secure(&self) -> bool {
+        false
+    }
 
     /// Store a value securely (e.g., iOS Keychain, Android Keystore).
     fn secure_set(&self, _key: &str, _value: &[u8]) -> StorageResult<()> {
@@ -265,7 +292,8 @@ impl StorageManager {
 
     /// Set a string value.
     pub fn set_string(&self, ns: &StorageNamespace, key: &str, value: &str) -> StorageResult<()> {
-        self.backend.set(ns, key, StorageValue::String(value.to_string()))
+        self.backend
+            .set(ns, key, StorageValue::String(value.to_string()))
     }
 
     /// Get a boolean value.
@@ -279,7 +307,9 @@ impl StorageManager {
 
     /// Get a value, deserializing from JSON stored as a string.
     pub fn get_json<T: serde::de::DeserializeOwned>(
-        &self, ns: &StorageNamespace, key: &str,
+        &self,
+        ns: &StorageNamespace,
+        key: &str,
     ) -> StorageResult<Option<T>> {
         match self.backend.get(ns, key)? {
             Some(StorageValue::String(s)) => {
@@ -293,7 +323,10 @@ impl StorageManager {
 
     /// Set a value, serializing to JSON and storing as a string.
     pub fn set_json<T: Serialize>(
-        &self, ns: &StorageNamespace, key: &str, value: &T,
+        &self,
+        ns: &StorageNamespace,
+        key: &str,
+        value: &T,
     ) -> StorageResult<()> {
         let json = serde_json::to_string(value)
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -302,7 +335,9 @@ impl StorageManager {
 
     /// Multi-get: fetch multiple keys at once.
     pub fn multi_get(
-        &self, ns: &StorageNamespace, keys: &[&str],
+        &self,
+        ns: &StorageNamespace,
+        keys: &[&str],
     ) -> StorageResult<HashMap<String, StorageValue>> {
         let mut result = HashMap::new();
         for &key in keys {
@@ -315,7 +350,9 @@ impl StorageManager {
 
     /// Multi-set: store multiple key-value pairs at once.
     pub fn multi_set(
-        &self, ns: &StorageNamespace, entries: &[(&str, StorageValue)],
+        &self,
+        ns: &StorageNamespace,
+        entries: &[(&str, StorageValue)],
     ) -> StorageResult<()> {
         for (key, value) in entries {
             self.backend.set(ns, key, value.clone())?;
@@ -356,8 +393,7 @@ impl StorageManager {
     /// Read a file as a UTF-8 string.
     pub fn read_text(&self, path: &str) -> StorageResult<String> {
         let bytes = self.backend.read_file(path)?;
-        String::from_utf8(bytes)
-            .map_err(|e| StorageError::SerializationError(e.to_string()))
+        String::from_utf8(bytes).map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 }
 
@@ -386,7 +422,9 @@ impl MemoryStorageBackend {
 }
 
 impl StorageBackend for MemoryStorageBackend {
-    fn platform_id(&self) -> &str { &self.platform }
+    fn platform_id(&self) -> &str {
+        &self.platform
+    }
 
     fn get(&self, namespace: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> {
         let full_key = namespace.prefixed_key(key);
@@ -394,7 +432,12 @@ impl StorageBackend for MemoryStorageBackend {
         Ok(store.get(&full_key).cloned())
     }
 
-    fn set(&self, namespace: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> {
+    fn set(
+        &self,
+        namespace: &StorageNamespace,
+        key: &str,
+        value: StorageValue,
+    ) -> StorageResult<()> {
         let full_key = namespace.prefixed_key(key);
         let mut store = self.kv.write().unwrap();
         store.insert(full_key, value);
@@ -417,7 +460,8 @@ impl StorageBackend for MemoryStorageBackend {
     fn keys(&self, namespace: &StorageNamespace) -> StorageResult<Vec<String>> {
         let prefix = format!("{}:", namespace.as_str());
         let store = self.kv.read().unwrap();
-        let keys: Vec<String> = store.keys()
+        let keys: Vec<String> = store
+            .keys()
             .filter(|k| k.starts_with(&prefix))
             .map(|k| k[prefix.len()..].to_string())
             .collect();
@@ -431,7 +475,9 @@ impl StorageBackend for MemoryStorageBackend {
         Ok(())
     }
 
-    fn supports_secure(&self) -> bool { true }
+    fn supports_secure(&self) -> bool {
+        true
+    }
 
     fn secure_set(&self, key: &str, value: &[u8]) -> StorageResult<()> {
         let mut secure = self.secure.write().unwrap();
@@ -458,7 +504,9 @@ impl StorageBackend for MemoryStorageBackend {
 
     fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> {
         let files = self.files.read().unwrap();
-        files.get(path).cloned()
+        files
+            .get(path)
+            .cloned()
             .ok_or_else(|| StorageError::FileNotFound(path.to_string()))
     }
 
@@ -474,9 +522,14 @@ impl StorageBackend for MemoryStorageBackend {
     }
 
     fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> {
-        let prefix = if dir.ends_with('/') { dir.to_string() } else { format!("{dir}/") };
+        let prefix = if dir.ends_with('/') {
+            dir.to_string()
+        } else {
+            format!("{dir}/")
+        };
         let files = self.files.read().unwrap();
-        let listing: Vec<String> = files.keys()
+        let listing: Vec<String> = files
+            .keys()
             .filter(|k| k.starts_with(&prefix))
             .cloned()
             .collect();
@@ -494,28 +547,66 @@ pub struct IosStorageBackend {
     memory: MemoryStorageBackend,
 }
 
+impl Default for IosStorageBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IosStorageBackend {
     pub fn new() -> Self {
-        Self { memory: MemoryStorageBackend::new("ios") }
+        Self {
+            memory: MemoryStorageBackend::new("ios"),
+        }
     }
 }
 
 impl StorageBackend for IosStorageBackend {
-    fn platform_id(&self) -> &str { "ios" }
-    fn get(&self, ns: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> { self.memory.get(ns, key) }
-    fn set(&self, ns: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> { self.memory.set(ns, key, value) }
-    fn delete(&self, ns: &StorageNamespace, key: &str) -> StorageResult<()> { self.memory.delete(ns, key) }
-    fn keys(&self, ns: &StorageNamespace) -> StorageResult<Vec<String>> { self.memory.keys(ns) }
-    fn clear(&self, ns: &StorageNamespace) -> StorageResult<()> { self.memory.clear(ns) }
-    fn supports_secure(&self) -> bool { true } // iOS Keychain
-    fn secure_set(&self, key: &str, value: &[u8]) -> StorageResult<()> { self.memory.secure_set(key, value) }
-    fn secure_get(&self, key: &str) -> StorageResult<Option<Vec<u8>>> { self.memory.secure_get(key) }
-    fn secure_delete(&self, key: &str) -> StorageResult<()> { self.memory.secure_delete(key) }
-    fn write_file(&self, path: &str, data: &[u8]) -> StorageResult<()> { self.memory.write_file(path, data) }
-    fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> { self.memory.read_file(path) }
-    fn delete_file(&self, path: &str) -> StorageResult<()> { self.memory.delete_file(path) }
-    fn file_exists(&self, path: &str) -> StorageResult<bool> { self.memory.file_exists(path) }
-    fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> { self.memory.list_files(dir) }
+    fn platform_id(&self) -> &str {
+        "ios"
+    }
+    fn get(&self, ns: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> {
+        self.memory.get(ns, key)
+    }
+    fn set(&self, ns: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> {
+        self.memory.set(ns, key, value)
+    }
+    fn delete(&self, ns: &StorageNamespace, key: &str) -> StorageResult<()> {
+        self.memory.delete(ns, key)
+    }
+    fn keys(&self, ns: &StorageNamespace) -> StorageResult<Vec<String>> {
+        self.memory.keys(ns)
+    }
+    fn clear(&self, ns: &StorageNamespace) -> StorageResult<()> {
+        self.memory.clear(ns)
+    }
+    fn supports_secure(&self) -> bool {
+        true
+    } // iOS Keychain
+    fn secure_set(&self, key: &str, value: &[u8]) -> StorageResult<()> {
+        self.memory.secure_set(key, value)
+    }
+    fn secure_get(&self, key: &str) -> StorageResult<Option<Vec<u8>>> {
+        self.memory.secure_get(key)
+    }
+    fn secure_delete(&self, key: &str) -> StorageResult<()> {
+        self.memory.secure_delete(key)
+    }
+    fn write_file(&self, path: &str, data: &[u8]) -> StorageResult<()> {
+        self.memory.write_file(path, data)
+    }
+    fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> {
+        self.memory.read_file(path)
+    }
+    fn delete_file(&self, path: &str) -> StorageResult<()> {
+        self.memory.delete_file(path)
+    }
+    fn file_exists(&self, path: &str) -> StorageResult<bool> {
+        self.memory.file_exists(path)
+    }
+    fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> {
+        self.memory.list_files(dir)
+    }
 }
 
 /// Android storage backend stub.
@@ -524,28 +615,66 @@ pub struct AndroidStorageBackend {
     memory: MemoryStorageBackend,
 }
 
+impl Default for AndroidStorageBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AndroidStorageBackend {
     pub fn new() -> Self {
-        Self { memory: MemoryStorageBackend::new("android") }
+        Self {
+            memory: MemoryStorageBackend::new("android"),
+        }
     }
 }
 
 impl StorageBackend for AndroidStorageBackend {
-    fn platform_id(&self) -> &str { "android" }
-    fn get(&self, ns: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> { self.memory.get(ns, key) }
-    fn set(&self, ns: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> { self.memory.set(ns, key, value) }
-    fn delete(&self, ns: &StorageNamespace, key: &str) -> StorageResult<()> { self.memory.delete(ns, key) }
-    fn keys(&self, ns: &StorageNamespace) -> StorageResult<Vec<String>> { self.memory.keys(ns) }
-    fn clear(&self, ns: &StorageNamespace) -> StorageResult<()> { self.memory.clear(ns) }
-    fn supports_secure(&self) -> bool { true } // Android Keystore
-    fn secure_set(&self, key: &str, value: &[u8]) -> StorageResult<()> { self.memory.secure_set(key, value) }
-    fn secure_get(&self, key: &str) -> StorageResult<Option<Vec<u8>>> { self.memory.secure_get(key) }
-    fn secure_delete(&self, key: &str) -> StorageResult<()> { self.memory.secure_delete(key) }
-    fn write_file(&self, path: &str, data: &[u8]) -> StorageResult<()> { self.memory.write_file(path, data) }
-    fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> { self.memory.read_file(path) }
-    fn delete_file(&self, path: &str) -> StorageResult<()> { self.memory.delete_file(path) }
-    fn file_exists(&self, path: &str) -> StorageResult<bool> { self.memory.file_exists(path) }
-    fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> { self.memory.list_files(dir) }
+    fn platform_id(&self) -> &str {
+        "android"
+    }
+    fn get(&self, ns: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> {
+        self.memory.get(ns, key)
+    }
+    fn set(&self, ns: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> {
+        self.memory.set(ns, key, value)
+    }
+    fn delete(&self, ns: &StorageNamespace, key: &str) -> StorageResult<()> {
+        self.memory.delete(ns, key)
+    }
+    fn keys(&self, ns: &StorageNamespace) -> StorageResult<Vec<String>> {
+        self.memory.keys(ns)
+    }
+    fn clear(&self, ns: &StorageNamespace) -> StorageResult<()> {
+        self.memory.clear(ns)
+    }
+    fn supports_secure(&self) -> bool {
+        true
+    } // Android Keystore
+    fn secure_set(&self, key: &str, value: &[u8]) -> StorageResult<()> {
+        self.memory.secure_set(key, value)
+    }
+    fn secure_get(&self, key: &str) -> StorageResult<Option<Vec<u8>>> {
+        self.memory.secure_get(key)
+    }
+    fn secure_delete(&self, key: &str) -> StorageResult<()> {
+        self.memory.secure_delete(key)
+    }
+    fn write_file(&self, path: &str, data: &[u8]) -> StorageResult<()> {
+        self.memory.write_file(path, data)
+    }
+    fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> {
+        self.memory.read_file(path)
+    }
+    fn delete_file(&self, path: &str) -> StorageResult<()> {
+        self.memory.delete_file(path)
+    }
+    fn file_exists(&self, path: &str) -> StorageResult<bool> {
+        self.memory.file_exists(path)
+    }
+    fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> {
+        self.memory.list_files(dir)
+    }
 }
 
 /// Web storage backend stub.
@@ -554,25 +683,57 @@ pub struct WebStorageBackend {
     memory: MemoryStorageBackend,
 }
 
+impl Default for WebStorageBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WebStorageBackend {
     pub fn new() -> Self {
-        Self { memory: MemoryStorageBackend::new("web") }
+        Self {
+            memory: MemoryStorageBackend::new("web"),
+        }
     }
 }
 
 impl StorageBackend for WebStorageBackend {
-    fn platform_id(&self) -> &str { "web" }
-    fn get(&self, ns: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> { self.memory.get(ns, key) }
-    fn set(&self, ns: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> { self.memory.set(ns, key, value) }
-    fn delete(&self, ns: &StorageNamespace, key: &str) -> StorageResult<()> { self.memory.delete(ns, key) }
-    fn keys(&self, ns: &StorageNamespace) -> StorageResult<Vec<String>> { self.memory.keys(ns) }
-    fn clear(&self, ns: &StorageNamespace) -> StorageResult<()> { self.memory.clear(ns) }
-    fn supports_secure(&self) -> bool { false } // Web has limited secure storage
-    fn write_file(&self, path: &str, data: &[u8]) -> StorageResult<()> { self.memory.write_file(path, data) }
-    fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> { self.memory.read_file(path) }
-    fn delete_file(&self, path: &str) -> StorageResult<()> { self.memory.delete_file(path) }
-    fn file_exists(&self, path: &str) -> StorageResult<bool> { self.memory.file_exists(path) }
-    fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> { self.memory.list_files(dir) }
+    fn platform_id(&self) -> &str {
+        "web"
+    }
+    fn get(&self, ns: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> {
+        self.memory.get(ns, key)
+    }
+    fn set(&self, ns: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> {
+        self.memory.set(ns, key, value)
+    }
+    fn delete(&self, ns: &StorageNamespace, key: &str) -> StorageResult<()> {
+        self.memory.delete(ns, key)
+    }
+    fn keys(&self, ns: &StorageNamespace) -> StorageResult<Vec<String>> {
+        self.memory.keys(ns)
+    }
+    fn clear(&self, ns: &StorageNamespace) -> StorageResult<()> {
+        self.memory.clear(ns)
+    }
+    fn supports_secure(&self) -> bool {
+        false
+    } // Web has limited secure storage
+    fn write_file(&self, path: &str, data: &[u8]) -> StorageResult<()> {
+        self.memory.write_file(path, data)
+    }
+    fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> {
+        self.memory.read_file(path)
+    }
+    fn delete_file(&self, path: &str) -> StorageResult<()> {
+        self.memory.delete_file(path)
+    }
+    fn file_exists(&self, path: &str) -> StorageResult<bool> {
+        self.memory.file_exists(path)
+    }
+    fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> {
+        self.memory.list_files(dir)
+    }
 }
 
 /// Desktop storage backend stub (macOS, Windows, Linux).
@@ -581,28 +742,66 @@ pub struct DesktopStorageBackend {
     memory: MemoryStorageBackend,
 }
 
+impl Default for DesktopStorageBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DesktopStorageBackend {
     pub fn new() -> Self {
-        Self { memory: MemoryStorageBackend::new("desktop") }
+        Self {
+            memory: MemoryStorageBackend::new("desktop"),
+        }
     }
 }
 
 impl StorageBackend for DesktopStorageBackend {
-    fn platform_id(&self) -> &str { "desktop" }
-    fn get(&self, ns: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> { self.memory.get(ns, key) }
-    fn set(&self, ns: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> { self.memory.set(ns, key, value) }
-    fn delete(&self, ns: &StorageNamespace, key: &str) -> StorageResult<()> { self.memory.delete(ns, key) }
-    fn keys(&self, ns: &StorageNamespace) -> StorageResult<Vec<String>> { self.memory.keys(ns) }
-    fn clear(&self, ns: &StorageNamespace) -> StorageResult<()> { self.memory.clear(ns) }
-    fn supports_secure(&self) -> bool { true } // OS keyring
-    fn secure_set(&self, key: &str, value: &[u8]) -> StorageResult<()> { self.memory.secure_set(key, value) }
-    fn secure_get(&self, key: &str) -> StorageResult<Option<Vec<u8>>> { self.memory.secure_get(key) }
-    fn secure_delete(&self, key: &str) -> StorageResult<()> { self.memory.secure_delete(key) }
-    fn write_file(&self, path: &str, data: &[u8]) -> StorageResult<()> { self.memory.write_file(path, data) }
-    fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> { self.memory.read_file(path) }
-    fn delete_file(&self, path: &str) -> StorageResult<()> { self.memory.delete_file(path) }
-    fn file_exists(&self, path: &str) -> StorageResult<bool> { self.memory.file_exists(path) }
-    fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> { self.memory.list_files(dir) }
+    fn platform_id(&self) -> &str {
+        "desktop"
+    }
+    fn get(&self, ns: &StorageNamespace, key: &str) -> StorageResult<Option<StorageValue>> {
+        self.memory.get(ns, key)
+    }
+    fn set(&self, ns: &StorageNamespace, key: &str, value: StorageValue) -> StorageResult<()> {
+        self.memory.set(ns, key, value)
+    }
+    fn delete(&self, ns: &StorageNamespace, key: &str) -> StorageResult<()> {
+        self.memory.delete(ns, key)
+    }
+    fn keys(&self, ns: &StorageNamespace) -> StorageResult<Vec<String>> {
+        self.memory.keys(ns)
+    }
+    fn clear(&self, ns: &StorageNamespace) -> StorageResult<()> {
+        self.memory.clear(ns)
+    }
+    fn supports_secure(&self) -> bool {
+        true
+    } // OS keyring
+    fn secure_set(&self, key: &str, value: &[u8]) -> StorageResult<()> {
+        self.memory.secure_set(key, value)
+    }
+    fn secure_get(&self, key: &str) -> StorageResult<Option<Vec<u8>>> {
+        self.memory.secure_get(key)
+    }
+    fn secure_delete(&self, key: &str) -> StorageResult<()> {
+        self.memory.secure_delete(key)
+    }
+    fn write_file(&self, path: &str, data: &[u8]) -> StorageResult<()> {
+        self.memory.write_file(path, data)
+    }
+    fn read_file(&self, path: &str) -> StorageResult<Vec<u8>> {
+        self.memory.read_file(path)
+    }
+    fn delete_file(&self, path: &str) -> StorageResult<()> {
+        self.memory.delete_file(path)
+    }
+    fn file_exists(&self, path: &str) -> StorageResult<bool> {
+        self.memory.file_exists(path)
+    }
+    fn list_files(&self, dir: &str) -> StorageResult<Vec<String>> {
+        self.memory.list_files(dir)
+    }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -690,9 +889,15 @@ mod tests {
         let ns = StorageNamespace::app_data();
 
         #[derive(Debug, Serialize, Deserialize, PartialEq)]
-        struct Config { debug: bool, max_items: u32 }
+        struct Config {
+            debug: bool,
+            max_items: u32,
+        }
 
-        let config = Config { debug: true, max_items: 50 };
+        let config = Config {
+            debug: true,
+            max_items: 50,
+        };
         mgr.set_json(&ns, "config", &config).unwrap();
 
         let loaded: Config = mgr.get_json(&ns, "config").unwrap().unwrap();
@@ -704,11 +909,15 @@ mod tests {
         let mgr = make_manager();
         let ns = StorageNamespace::app_data();
 
-        mgr.multi_set(&ns, &[
-            ("x", StorageValue::Int(1)),
-            ("y", StorageValue::Int(2)),
-            ("z", StorageValue::Int(3)),
-        ]).unwrap();
+        mgr.multi_set(
+            &ns,
+            &[
+                ("x", StorageValue::Int(1)),
+                ("y", StorageValue::Int(2)),
+                ("z", StorageValue::Int(3)),
+            ],
+        )
+        .unwrap();
 
         let result = mgr.multi_get(&ns, &["x", "z", "missing"]).unwrap();
         assert_eq!(result.len(), 2);
@@ -735,7 +944,8 @@ mod tests {
 
         assert!(!mgr.backend.file_exists("docs/readme.txt").unwrap());
 
-        mgr.write_text("docs/readme.txt", "Hello, AppScale!").unwrap();
+        mgr.write_text("docs/readme.txt", "Hello, AppScale!")
+            .unwrap();
         assert!(mgr.backend.file_exists("docs/readme.txt").unwrap());
 
         let text = mgr.read_text("docs/readme.txt").unwrap();
@@ -753,10 +963,7 @@ mod tests {
         let mgr = make_manager();
         let result = mgr.read_text("nonexistent.txt");
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            StorageError::FileNotFound(_)
-        ));
+        assert!(matches!(result.unwrap_err(), StorageError::FileNotFound(_)));
     }
 
     #[test]
@@ -770,8 +977,8 @@ mod tests {
         let v: StorageValue = 42i64.into();
         assert_eq!(v.as_i64(), Some(42));
 
-        let v: StorageValue = 3.14f64.into();
-        assert_eq!(v.as_f64(), Some(3.14));
+        let v: StorageValue = std::f64::consts::PI.into();
+        assert_eq!(v.as_f64(), Some(std::f64::consts::PI));
 
         assert!(StorageValue::Null.is_null());
     }

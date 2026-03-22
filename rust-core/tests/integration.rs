@@ -4,8 +4,8 @@
 
 use appscale_core::ir::{IrBatch, IrCommand};
 use appscale_core::platform::{
-    NativeHandle, PlatformBridge, PlatformCapability, PlatformError, PlatformId, PropsDiff,
-    PropValue, ScreenSize, TextMetrics, TextStyle, ViewType,
+    NativeHandle, PlatformBridge, PlatformCapability, PlatformError, PlatformId, PropValue,
+    PropsDiff, ScreenSize, TextMetrics, TextStyle, ViewType,
 };
 use appscale_core::tree::NodeId;
 use appscale_core::Engine;
@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum Op {
     Create(ViewType, NodeId),
     Update(NativeHandle),
@@ -54,7 +55,10 @@ impl PlatformBridge for TestPlatform {
         let mut h = self.next_handle.lock().unwrap();
         let handle = NativeHandle(*h);
         *h += 1;
-        self.ops.lock().unwrap().push(Op::Create(view_type, node_id));
+        self.ops
+            .lock()
+            .unwrap()
+            .push(Op::Create(view_type, node_id));
         handle
     }
     fn update_view(&self, handle: NativeHandle, _props: &PropsDiff) -> Result<(), PlatformError> {
@@ -104,7 +108,9 @@ impl PlatformBridge for TestPlatform {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /// Shorthand to reduce verbosity.
-fn nid(v: u64) -> NodeId { NodeId(v) }
+fn nid(v: u64) -> NodeId {
+    NodeId(v)
+}
 
 fn make_platform() -> Arc<TestPlatform> {
     Arc::new(TestPlatform::new())
@@ -133,10 +139,7 @@ fn json_round_trip() {
     engine.apply_commit(&batch).expect("apply_commit");
 
     let ops = platform.ops();
-    let creates: Vec<_> = ops
-        .iter()
-        .filter(|o| matches!(o, Op::Create(..)))
-        .collect();
+    let creates: Vec<_> = ops.iter().filter(|o| matches!(o, Op::Create(..))).collect();
     assert_eq!(creates.len(), 2);
 }
 
@@ -418,7 +421,9 @@ fn large_batch() {
         commands,
     };
 
-    engine.apply_commit(&batch).expect("large batch should succeed");
+    engine
+        .apply_commit(&batch)
+        .expect("large batch should succeed");
 }
 
 /// Navigation dispatch round-trip.

@@ -9,15 +9,15 @@
 //! 2. Deep links must resolve before React renders
 //! 3. Back button/gesture handling is synchronous and platform-specific
 
-use crate::tree::NodeId;
 use crate::platform::NativeHandle;
+use crate::tree::NodeId;
 use std::collections::HashMap;
 
 /// A route definition (registered at app startup).
 #[derive(Debug, Clone)]
 pub struct RouteDefinition {
     pub name: String,
-    pub path: Option<String>,           // URL path for deep linking, e.g. "/profile/:id"
+    pub path: Option<String>, // URL path for deep linking, e.g. "/profile/:id"
     pub presentation: Presentation,
     pub options: RouteOptions,
 }
@@ -46,7 +46,7 @@ pub struct RouteOptions {
 #[derive(Debug, Clone, Copy, Default)]
 pub enum TransitionAnimation {
     #[default]
-    Platform,       // Use native platform animation
+    Platform, // Use native platform animation
     SlideRight,
     SlideUp,
     Fade,
@@ -60,7 +60,7 @@ pub struct Screen {
     pub route_name: String,
     pub params: HashMap<String, String>,
     pub presentation: Presentation,
-    pub root_node: Option<NodeId>,       // Root shadow tree node for this screen
+    pub root_node: Option<NodeId>, // Root shadow tree node for this screen
     pub native_handle: Option<NativeHandle>,
 }
 
@@ -70,28 +70,48 @@ pub struct ScreenId(pub u64);
 /// Navigation action (sent from React or deep link resolver).
 #[derive(Debug, Clone)]
 pub enum NavigationAction {
-    Push { route: String, params: HashMap<String, String> },
+    Push {
+        route: String,
+        params: HashMap<String, String>,
+    },
     Pop,
     PopToRoot,
-    Replace { route: String, params: HashMap<String, String> },
-    PresentModal { route: String, params: HashMap<String, String> },
+    Replace {
+        route: String,
+        params: HashMap<String, String>,
+    },
+    PresentModal {
+        route: String,
+        params: HashMap<String, String>,
+    },
     DismissModal,
-    SwitchTab { index: usize },
-    DeepLink { url: String },
-    GoBack,     // Platform back button (Android, Windows, web browser)
+    SwitchTab {
+        index: usize,
+    },
+    DeepLink {
+        url: String,
+    },
+    GoBack, // Platform back button (Android, Windows, web browser)
 }
 
 /// Navigation event (sent to React for rendering decisions).
 #[derive(Debug, Clone)]
 pub enum NavigationEvent {
     /// A new screen should be rendered.
-    ScreenMounted { screen_id: ScreenId, route_name: String, params: HashMap<String, String> },
+    ScreenMounted {
+        screen_id: ScreenId,
+        route_name: String,
+        params: HashMap<String, String>,
+    },
     /// A screen is being removed (animate out, then destroy).
     ScreenUnmounting { screen_id: ScreenId },
     /// The active screen changed (for tab bar highlighting, etc.).
     ActiveScreenChanged { screen_id: ScreenId },
     /// Navigation state changed (for DevTools).
-    StateChanged { stack_depth: usize, active_route: String },
+    StateChanged {
+        stack_depth: usize,
+        active_route: String,
+    },
 }
 
 /// The navigator manages all navigation state.
@@ -114,6 +134,12 @@ pub struct Navigator {
 
     /// Pending events to deliver to React.
     pending_events: Vec<NavigationEvent>,
+}
+
+impl Default for Navigator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Navigator {
@@ -154,7 +180,8 @@ impl Navigator {
                 // Pop current, push new (no animation)
                 if !self.stack.is_empty() {
                     let screen_id = self.stack.last().unwrap().id;
-                    self.pending_events.push(NavigationEvent::ScreenUnmounting { screen_id });
+                    self.pending_events
+                        .push(NavigationEvent::ScreenUnmounting { screen_id });
                     self.stack.pop();
                 }
                 self.push_screen(&route, params, Presentation::Replace);
@@ -173,9 +200,10 @@ impl Navigator {
             NavigationAction::SwitchTab { index } => {
                 if index < self.tabs.len() {
                     self.active_tab = index;
-                    self.pending_events.push(NavigationEvent::ActiveScreenChanged {
-                        screen_id: self.tabs[index].id,
-                    });
+                    self.pending_events
+                        .push(NavigationEvent::ActiveScreenChanged {
+                            screen_id: self.tabs[index].id,
+                        });
                 }
             }
             NavigationAction::DeepLink { url } => {
@@ -277,8 +305,7 @@ impl Navigator {
 
     /// Get the currently active (visible) screen.
     pub fn active_screen(&self) -> Option<&Screen> {
-        self.modals.last()
-            .or_else(|| self.stack.last())
+        self.modals.last().or_else(|| self.stack.last())
     }
 
     /// Get the current stack for DevTools.
@@ -299,7 +326,8 @@ fn match_path(pattern: &str, url: &str) -> Option<HashMap<String, String>> {
     let url_parts: Vec<&str> = url.split('/').filter(|s| !s.is_empty()).collect();
 
     // Strip query string from URL
-    let url_parts: Vec<&str> = url_parts.iter()
+    let url_parts: Vec<&str> = url_parts
+        .iter()
         .map(|p| p.split('?').next().unwrap_or(p))
         .collect();
 
@@ -310,8 +338,7 @@ fn match_path(pattern: &str, url: &str) -> Option<HashMap<String, String>> {
     let mut params = HashMap::new();
 
     for (pattern_part, url_part) in pattern_parts.iter().zip(url_parts.iter()) {
-        if pattern_part.starts_with(':') {
-            let param_name = &pattern_part[1..];
+        if let Some(param_name) = pattern_part.strip_prefix(':') {
             params.insert(param_name.to_string(), url_part.to_string());
         } else if pattern_part != url_part {
             return None;
@@ -337,7 +364,10 @@ mod tests {
             name: "Profile".to_string(),
             path: Some("/profile/:id".to_string()),
             presentation: Presentation::Push,
-            options: RouteOptions { gesture_enabled: true, ..Default::default() },
+            options: RouteOptions {
+                gesture_enabled: true,
+                ..Default::default()
+            },
         });
         nav.register_route(RouteDefinition {
             name: "Settings".to_string(),

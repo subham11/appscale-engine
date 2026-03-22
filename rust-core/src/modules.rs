@@ -25,9 +25,9 @@
 //! }
 //! ```
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde::{Serialize, Deserialize};
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Module argument and result types
@@ -97,11 +97,19 @@ pub struct MethodDescriptor {
 
 impl MethodDescriptor {
     pub fn sync(name: impl Into<String>, description: impl Into<String>) -> Self {
-        Self { name: name.into(), description: description.into(), is_async: false }
+        Self {
+            name: name.into(),
+            description: description.into(),
+            is_async: false,
+        }
     }
 
     pub fn async_method(name: impl Into<String>, description: impl Into<String>) -> Self {
-        Self { name: name.into(), description: description.into(), is_async: true }
+        Self {
+            name: name.into(),
+            description: description.into(),
+            is_async: true,
+        }
     }
 }
 
@@ -130,13 +138,13 @@ pub trait NativeModule: Send + Sync {
     /// Invoke an asynchronous method. Returns a boxed future.
     /// Default implementation returns MethodNotFound.
     fn invoke_async(
-        &self, method: &str, _args: &[ModuleArg],
+        &self,
+        method: &str,
+        _args: &[ModuleArg],
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ModuleResult> + Send + '_>> {
         let module = self.name().to_string();
         let method = method.to_string();
-        Box::pin(async move {
-            Err(ModuleError::MethodNotFound { module, method })
-        })
+        Box::pin(async move { Err(ModuleError::MethodNotFound { module, method }) })
     }
 
     /// Called when the module is registered. Use for initialization.
@@ -157,7 +165,9 @@ pub struct ModuleRegistry {
 
 impl ModuleRegistry {
     pub fn new() -> Self {
-        Self { modules: RwLock::new(HashMap::new()) }
+        Self {
+            modules: RwLock::new(HashMap::new()),
+        }
     }
 
     /// Register a native module. Returns error if a module with the same name exists.
@@ -165,7 +175,9 @@ impl ModuleRegistry {
         let name = module.name().to_string();
         let mut modules = self.modules.write().unwrap();
         if modules.contains_key(&name) {
-            return Err(ModuleError::Internal(format!("Module '{name}' already registered")));
+            return Err(ModuleError::Internal(format!(
+                "Module '{name}' already registered"
+            )));
         }
         module.on_init();
         modules.insert(name, module);
@@ -195,17 +207,17 @@ impl ModuleRegistry {
     /// Get method descriptors for a module.
     pub fn module_methods(&self, name: &str) -> Result<Vec<MethodDescriptor>, ModuleError> {
         let modules = self.modules.read().unwrap();
-        let module = modules.get(name)
+        let module = modules
+            .get(name)
             .ok_or_else(|| ModuleError::ModuleNotFound(name.to_string()))?;
         Ok(module.methods())
     }
 
     /// Invoke a synchronous method on a module.
-    pub fn invoke_sync(
-        &self, module_name: &str, method: &str, args: &[ModuleArg],
-    ) -> ModuleResult {
+    pub fn invoke_sync(&self, module_name: &str, method: &str, args: &[ModuleArg]) -> ModuleResult {
         let modules = self.modules.read().unwrap();
-        let module = modules.get(module_name)
+        let module = modules
+            .get(module_name)
             .ok_or_else(|| ModuleError::ModuleNotFound(module_name.to_string()))?;
 
         // Verify method exists and is sync
@@ -223,11 +235,15 @@ impl ModuleRegistry {
 
     /// Invoke an async method on a module.
     pub async fn invoke_async(
-        &self, module_name: &str, method: &str, args: &[ModuleArg],
+        &self,
+        module_name: &str,
+        method: &str,
+        args: &[ModuleArg],
     ) -> ModuleResult {
         let module = {
             let modules = self.modules.read().unwrap();
-            modules.get(module_name)
+            modules
+                .get(module_name)
                 .ok_or_else(|| ModuleError::ModuleNotFound(module_name.to_string()))?
                 .clone()
         };
@@ -237,7 +253,9 @@ impl ModuleRegistry {
 }
 
 impl Default for ModuleRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -247,7 +265,9 @@ mod tests {
     struct TestModule;
 
     impl NativeModule for TestModule {
-        fn name(&self) -> &str { "Test" }
+        fn name(&self) -> &str {
+            "Test"
+        }
 
         fn methods(&self) -> Vec<MethodDescriptor> {
             vec![
@@ -293,9 +313,9 @@ mod tests {
         assert!(registry.has("Test"));
         assert!(!registry.has("Unknown"));
 
-        let result = registry.invoke_sync(
-            "Test", "greet", &[ModuleArg::String("Rust".into())]
-        ).unwrap();
+        let result = registry
+            .invoke_sync("Test", "greet", &[ModuleArg::String("Rust".into())])
+            .unwrap();
         assert!(matches!(result, ModuleValue::String(s) if s == "Hello, Rust!"));
     }
 
@@ -304,9 +324,9 @@ mod tests {
         let registry = ModuleRegistry::new();
         registry.register(Arc::new(TestModule)).unwrap();
 
-        let result = registry.invoke_sync(
-            "Test", "add", &[ModuleArg::Int(3), ModuleArg::Int(4)]
-        ).unwrap();
+        let result = registry
+            .invoke_sync("Test", "add", &[ModuleArg::Int(3), ModuleArg::Int(4)])
+            .unwrap();
         assert!(matches!(result, ModuleValue::Int(7)));
     }
 

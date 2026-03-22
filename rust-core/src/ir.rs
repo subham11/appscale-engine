@@ -14,11 +14,11 @@
 //! - JSON (Phase 1 — DevTools, testing, debugging)
 //! - FlatBuffers (Phase 2 — production performance)
 
-use crate::tree::NodeId;
-use crate::platform::{ViewType, PropsDiff, PropValue};
-use crate::layout::LayoutStyle;
 use crate::generated::flatbuf;
-use serde::{Serialize, Deserialize};
+use crate::layout::LayoutStyle;
+use crate::platform::{PropValue, PropsDiff, ViewType};
+use crate::tree::NodeId;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// A single command from the reconciler to the engine.
@@ -39,24 +39,15 @@ pub enum IrCommand {
 
     /// Update props on an existing node (only changed props).
     #[serde(rename = "update_props")]
-    UpdateProps {
-        id: NodeId,
-        diff: PropsDiff,
-    },
+    UpdateProps { id: NodeId, diff: PropsDiff },
 
     /// Update layout style on an existing node.
     #[serde(rename = "update_style")]
-    UpdateStyle {
-        id: NodeId,
-        style: LayoutStyle,
-    },
+    UpdateStyle { id: NodeId, style: LayoutStyle },
 
     /// Append a child to a parent (at the end).
     #[serde(rename = "append_child")]
-    AppendChild {
-        parent: NodeId,
-        child: NodeId,
-    },
+    AppendChild { parent: NodeId, child: NodeId },
 
     /// Insert a child before another child.
     #[serde(rename = "insert_before")]
@@ -68,16 +59,11 @@ pub enum IrCommand {
 
     /// Remove a child from its parent (and destroy the subtree).
     #[serde(rename = "remove_child")]
-    RemoveChild {
-        parent: NodeId,
-        child: NodeId,
-    },
+    RemoveChild { parent: NodeId, child: NodeId },
 
     /// Set the root node of the tree.
     #[serde(rename = "set_root")]
-    SetRootNode {
-        id: NodeId,
-    },
+    SetRootNode { id: NodeId },
 }
 
 /// A batch of IR commands from a single React commit.
@@ -147,8 +133,8 @@ pub enum IrError {
 /// Decode an IR batch from FlatBuffers binary bytes.
 /// Zero-copy deserialization — the buffer is read in-place.
 pub fn decode_batch_flatbuf(bytes: &[u8]) -> Result<IrBatch, IrError> {
-    let fb_batch = flatbuf::root_as_ir_batch(bytes)
-        .map_err(|e| IrError::DecodeFailed(e.to_string()))?;
+    let fb_batch =
+        flatbuf::root_as_ir_batch(bytes).map_err(|e| IrError::DecodeFailed(e.to_string()))?;
 
     let mut batch = IrBatch {
         commit_id: fb_batch.commit_id(),
@@ -172,8 +158,14 @@ fn decode_fb_command(fb_cmd: &flatbuf::IrCommand<'_>) -> Result<IrCommand, IrErr
         flatbuf::Command::CreateNode => {
             let cn = fb_cmd.cmd_as_create_node().ok_or(IrError::UnknownCommand)?;
             let view_type = fb_view_type_to_engine(cn.view_type(), cn.custom_type());
-            let props = cn.props().map(|p| fb_props_to_engine(&p)).unwrap_or_default();
-            let style = cn.style().map(|s| fb_layout_to_engine(&s)).unwrap_or_default();
+            let props = cn
+                .props()
+                .map(|p| fb_props_to_engine(&p))
+                .unwrap_or_default();
+            let style = cn
+                .style()
+                .map(|s| fb_layout_to_engine(&s))
+                .unwrap_or_default();
             Ok(IrCommand::CreateNode {
                 id: NodeId(cn.id()),
                 view_type,
@@ -182,33 +174,47 @@ fn decode_fb_command(fb_cmd: &flatbuf::IrCommand<'_>) -> Result<IrCommand, IrErr
             })
         }
         flatbuf::Command::UpdateProps => {
-            let up = fb_cmd.cmd_as_update_props().ok_or(IrError::UnknownCommand)?;
-            let diff = up.diff().map(|p| {
-                let changes = fb_props_to_engine(&p);
-                PropsDiff { changes }
-            }).unwrap_or_default();
+            let up = fb_cmd
+                .cmd_as_update_props()
+                .ok_or(IrError::UnknownCommand)?;
+            let diff = up
+                .diff()
+                .map(|p| {
+                    let changes = fb_props_to_engine(&p);
+                    PropsDiff { changes }
+                })
+                .unwrap_or_default();
             Ok(IrCommand::UpdateProps {
                 id: NodeId(up.id()),
                 diff,
             })
         }
         flatbuf::Command::UpdateStyle => {
-            let us = fb_cmd.cmd_as_update_style().ok_or(IrError::UnknownCommand)?;
-            let style = us.style().map(|s| fb_layout_to_engine(&s)).unwrap_or_default();
+            let us = fb_cmd
+                .cmd_as_update_style()
+                .ok_or(IrError::UnknownCommand)?;
+            let style = us
+                .style()
+                .map(|s| fb_layout_to_engine(&s))
+                .unwrap_or_default();
             Ok(IrCommand::UpdateStyle {
                 id: NodeId(us.id()),
                 style,
             })
         }
         flatbuf::Command::AppendChild => {
-            let ac = fb_cmd.cmd_as_append_child().ok_or(IrError::UnknownCommand)?;
+            let ac = fb_cmd
+                .cmd_as_append_child()
+                .ok_or(IrError::UnknownCommand)?;
             Ok(IrCommand::AppendChild {
                 parent: NodeId(ac.parent()),
                 child: NodeId(ac.child()),
             })
         }
         flatbuf::Command::InsertBefore => {
-            let ib = fb_cmd.cmd_as_insert_before().ok_or(IrError::UnknownCommand)?;
+            let ib = fb_cmd
+                .cmd_as_insert_before()
+                .ok_or(IrError::UnknownCommand)?;
             Ok(IrCommand::InsertBefore {
                 parent: NodeId(ib.parent()),
                 child: NodeId(ib.child()),
@@ -216,7 +222,9 @@ fn decode_fb_command(fb_cmd: &flatbuf::IrCommand<'_>) -> Result<IrCommand, IrErr
             })
         }
         flatbuf::Command::RemoveChild => {
-            let rc = fb_cmd.cmd_as_remove_child().ok_or(IrError::UnknownCommand)?;
+            let rc = fb_cmd
+                .cmd_as_remove_child()
+                .ok_or(IrError::UnknownCommand)?;
             Ok(IrCommand::RemoveChild {
                 parent: NodeId(rc.parent()),
                 child: NodeId(rc.child()),
@@ -224,7 +232,9 @@ fn decode_fb_command(fb_cmd: &flatbuf::IrCommand<'_>) -> Result<IrCommand, IrErr
         }
         flatbuf::Command::SetRoot => {
             let sr = fb_cmd.cmd_as_set_root().ok_or(IrError::UnknownCommand)?;
-            Ok(IrCommand::SetRootNode { id: NodeId(sr.id()) })
+            Ok(IrCommand::SetRootNode {
+                id: NodeId(sr.id()),
+            })
         }
         _ => Err(IrError::UnknownCommand),
     }
@@ -234,17 +244,22 @@ fn decode_fb_command(fb_cmd: &flatbuf::IrCommand<'_>) -> Result<IrCommand, IrErr
 pub fn encode_batch_flatbuf(batch: &IrBatch) -> Vec<u8> {
     let mut fbb = flatbuffers::FlatBufferBuilder::with_capacity(1024);
 
-    let cmd_offsets: Vec<_> = batch.commands.iter().map(|cmd| {
-        encode_fb_command(&mut fbb, cmd)
-    }).collect();
+    let cmd_offsets: Vec<_> = batch
+        .commands
+        .iter()
+        .map(|cmd| encode_fb_command(&mut fbb, cmd))
+        .collect();
 
     let commands = fbb.create_vector(&cmd_offsets);
 
-    let fb_batch = flatbuf::IrBatch::create(&mut fbb, &flatbuf::IrBatchArgs {
-        commit_id: batch.commit_id,
-        timestamp_ms: batch.timestamp_ms,
-        commands: Some(commands),
-    });
+    let fb_batch = flatbuf::IrBatch::create(
+        &mut fbb,
+        &flatbuf::IrBatchArgs {
+            commit_id: batch.commit_id,
+            timestamp_ms: batch.timestamp_ms,
+            commands: Some(commands),
+        },
+    );
 
     flatbuf::finish_ir_batch_buffer(&mut fbb, fb_batch);
     fbb.finished_data().to_vec()
@@ -255,83 +270,133 @@ fn encode_fb_command<'a>(
     cmd: &IrCommand,
 ) -> flatbuffers::WIPOffset<flatbuf::IrCommand<'a>> {
     match cmd {
-        IrCommand::CreateNode { id, view_type, props, style } => {
+        IrCommand::CreateNode {
+            id,
+            view_type,
+            props,
+            style,
+        } => {
             let (fb_vt, custom_str) = engine_view_type_to_fb(fbb, view_type);
-            let fb_props = if props.is_empty() { None } else {
+            let fb_props = if props.is_empty() {
+                None
+            } else {
                 Some(engine_props_to_fb(fbb, props))
             };
             let fb_style = Some(engine_layout_to_fb(fbb, style));
-            let cn = flatbuf::CreateNode::create(fbb, &flatbuf::CreateNodeArgs {
-                id: id.0,
-                view_type: fb_vt,
-                custom_type: custom_str,
-                props: fb_props,
-                style: fb_style,
-            });
-            flatbuf::IrCommand::create(fbb, &flatbuf::IrCommandArgs {
-                cmd_type: flatbuf::Command::CreateNode,
-                cmd: Some(cn.as_union_value()),
-            })
+            let cn = flatbuf::CreateNode::create(
+                fbb,
+                &flatbuf::CreateNodeArgs {
+                    id: id.0,
+                    view_type: fb_vt,
+                    custom_type: custom_str,
+                    props: fb_props,
+                    style: fb_style,
+                },
+            );
+            flatbuf::IrCommand::create(
+                fbb,
+                &flatbuf::IrCommandArgs {
+                    cmd_type: flatbuf::Command::CreateNode,
+                    cmd: Some(cn.as_union_value()),
+                },
+            )
         }
         IrCommand::UpdateProps { id, diff } => {
             let fb_diff = engine_props_to_fb_diff(fbb, diff);
-            let up = flatbuf::UpdateProps::create(fbb, &flatbuf::UpdatePropsArgs {
-                id: id.0,
-                diff: Some(fb_diff),
-            });
-            flatbuf::IrCommand::create(fbb, &flatbuf::IrCommandArgs {
-                cmd_type: flatbuf::Command::UpdateProps,
-                cmd: Some(up.as_union_value()),
-            })
+            let up = flatbuf::UpdateProps::create(
+                fbb,
+                &flatbuf::UpdatePropsArgs {
+                    id: id.0,
+                    diff: Some(fb_diff),
+                },
+            );
+            flatbuf::IrCommand::create(
+                fbb,
+                &flatbuf::IrCommandArgs {
+                    cmd_type: flatbuf::Command::UpdateProps,
+                    cmd: Some(up.as_union_value()),
+                },
+            )
         }
         IrCommand::UpdateStyle { id, style } => {
             let fb_style = engine_layout_to_fb(fbb, style);
-            let us = flatbuf::UpdateStyle::create(fbb, &flatbuf::UpdateStyleArgs {
-                id: id.0,
-                style: Some(fb_style),
-            });
-            flatbuf::IrCommand::create(fbb, &flatbuf::IrCommandArgs {
-                cmd_type: flatbuf::Command::UpdateStyle,
-                cmd: Some(us.as_union_value()),
-            })
+            let us = flatbuf::UpdateStyle::create(
+                fbb,
+                &flatbuf::UpdateStyleArgs {
+                    id: id.0,
+                    style: Some(fb_style),
+                },
+            );
+            flatbuf::IrCommand::create(
+                fbb,
+                &flatbuf::IrCommandArgs {
+                    cmd_type: flatbuf::Command::UpdateStyle,
+                    cmd: Some(us.as_union_value()),
+                },
+            )
         }
         IrCommand::AppendChild { parent, child } => {
-            let ac = flatbuf::AppendChild::create(fbb, &flatbuf::AppendChildArgs {
-                parent: parent.0,
-                child: child.0,
-            });
-            flatbuf::IrCommand::create(fbb, &flatbuf::IrCommandArgs {
-                cmd_type: flatbuf::Command::AppendChild,
-                cmd: Some(ac.as_union_value()),
-            })
+            let ac = flatbuf::AppendChild::create(
+                fbb,
+                &flatbuf::AppendChildArgs {
+                    parent: parent.0,
+                    child: child.0,
+                },
+            );
+            flatbuf::IrCommand::create(
+                fbb,
+                &flatbuf::IrCommandArgs {
+                    cmd_type: flatbuf::Command::AppendChild,
+                    cmd: Some(ac.as_union_value()),
+                },
+            )
         }
-        IrCommand::InsertBefore { parent, child, before } => {
-            let ib = flatbuf::InsertBefore::create(fbb, &flatbuf::InsertBeforeArgs {
-                parent: parent.0,
-                child: child.0,
-                before: before.0,
-            });
-            flatbuf::IrCommand::create(fbb, &flatbuf::IrCommandArgs {
-                cmd_type: flatbuf::Command::InsertBefore,
-                cmd: Some(ib.as_union_value()),
-            })
+        IrCommand::InsertBefore {
+            parent,
+            child,
+            before,
+        } => {
+            let ib = flatbuf::InsertBefore::create(
+                fbb,
+                &flatbuf::InsertBeforeArgs {
+                    parent: parent.0,
+                    child: child.0,
+                    before: before.0,
+                },
+            );
+            flatbuf::IrCommand::create(
+                fbb,
+                &flatbuf::IrCommandArgs {
+                    cmd_type: flatbuf::Command::InsertBefore,
+                    cmd: Some(ib.as_union_value()),
+                },
+            )
         }
         IrCommand::RemoveChild { parent, child } => {
-            let rc = flatbuf::RemoveChild::create(fbb, &flatbuf::RemoveChildArgs {
-                parent: parent.0,
-                child: child.0,
-            });
-            flatbuf::IrCommand::create(fbb, &flatbuf::IrCommandArgs {
-                cmd_type: flatbuf::Command::RemoveChild,
-                cmd: Some(rc.as_union_value()),
-            })
+            let rc = flatbuf::RemoveChild::create(
+                fbb,
+                &flatbuf::RemoveChildArgs {
+                    parent: parent.0,
+                    child: child.0,
+                },
+            );
+            flatbuf::IrCommand::create(
+                fbb,
+                &flatbuf::IrCommandArgs {
+                    cmd_type: flatbuf::Command::RemoveChild,
+                    cmd: Some(rc.as_union_value()),
+                },
+            )
         }
         IrCommand::SetRootNode { id } => {
             let sr = flatbuf::SetRoot::create(fbb, &flatbuf::SetRootArgs { id: id.0 });
-            flatbuf::IrCommand::create(fbb, &flatbuf::IrCommandArgs {
-                cmd_type: flatbuf::Command::SetRoot,
-                cmd: Some(sr.as_union_value()),
-            })
+            flatbuf::IrCommand::create(
+                fbb,
+                &flatbuf::IrCommandArgs {
+                    cmd_type: flatbuf::Command::SetRoot,
+                    cmd: Some(sr.as_union_value()),
+                },
+            )
         }
     }
 }
@@ -391,36 +456,35 @@ fn fb_props_to_engine(diff: &flatbuf::PropsDiff<'_>) -> HashMap<String, PropValu
         for entry in changes {
             let key = entry.key().to_string();
             let value = match entry.value_type() {
-                flatbuf::PropValueUnion::StringVal => {
-                    entry.value_as_string_val()
-                        .map(|v| PropValue::String(v.value().unwrap_or("").to_string()))
-                        .unwrap_or(PropValue::Null)
-                }
-                flatbuf::PropValueUnion::FloatVal => {
-                    entry.value_as_float_val()
-                        .map(|v| PropValue::F64(v.value() as f64))
-                        .unwrap_or(PropValue::Null)
-                }
-                flatbuf::PropValueUnion::IntVal => {
-                    entry.value_as_int_val()
-                        .map(|v| PropValue::I32(v.value()))
-                        .unwrap_or(PropValue::Null)
-                }
-                flatbuf::PropValueUnion::BoolVal => {
-                    entry.value_as_bool_val()
-                        .map(|v| PropValue::Bool(v.value()))
-                        .unwrap_or(PropValue::Null)
-                }
-                flatbuf::PropValueUnion::ColorVal => {
-                    entry.value_as_color_val()
-                        .and_then(|v| v.value().map(|c| PropValue::Color(crate::platform::Color {
-                            r: c.r(),
-                            g: c.g(),
-                            b: c.b(),
-                            a: c.a(),
-                        })))
-                        .unwrap_or(PropValue::Null)
-                }
+                flatbuf::PropValueUnion::StringVal => entry
+                    .value_as_string_val()
+                    .map(|v| PropValue::String(v.value().unwrap_or("").to_string()))
+                    .unwrap_or(PropValue::Null),
+                flatbuf::PropValueUnion::FloatVal => entry
+                    .value_as_float_val()
+                    .map(|v| PropValue::F64(v.value() as f64))
+                    .unwrap_or(PropValue::Null),
+                flatbuf::PropValueUnion::IntVal => entry
+                    .value_as_int_val()
+                    .map(|v| PropValue::I32(v.value()))
+                    .unwrap_or(PropValue::Null),
+                flatbuf::PropValueUnion::BoolVal => entry
+                    .value_as_bool_val()
+                    .map(|v| PropValue::Bool(v.value()))
+                    .unwrap_or(PropValue::Null),
+                flatbuf::PropValueUnion::ColorVal => entry
+                    .value_as_color_val()
+                    .and_then(|v| {
+                        v.value().map(|c| {
+                            PropValue::Color(crate::platform::Color {
+                                r: c.r(),
+                                g: c.g(),
+                                b: c.b(),
+                                a: c.a(),
+                            })
+                        })
+                    })
+                    .unwrap_or(PropValue::Null),
                 _ => PropValue::Null,
             };
             map.insert(key, value);
@@ -433,13 +497,17 @@ fn engine_props_to_fb<'a>(
     fbb: &mut flatbuffers::FlatBufferBuilder<'a>,
     props: &HashMap<String, PropValue>,
 ) -> flatbuffers::WIPOffset<flatbuf::PropsDiff<'a>> {
-    let entries: Vec<_> = props.iter().map(|(key, value)| {
-        encode_prop_entry(fbb, key, value)
-    }).collect();
+    let entries: Vec<_> = props
+        .iter()
+        .map(|(key, value)| encode_prop_entry(fbb, key, value))
+        .collect();
     let changes = fbb.create_vector(&entries);
-    flatbuf::PropsDiff::create(fbb, &flatbuf::PropsDiffArgs {
-        changes: Some(changes),
-    })
+    flatbuf::PropsDiff::create(
+        fbb,
+        &flatbuf::PropsDiffArgs {
+            changes: Some(changes),
+        },
+    )
 }
 
 fn engine_props_to_fb_diff<'a>(
@@ -479,20 +547,27 @@ fn encode_prop_entry<'a>(
         }
         PropValue::Color(c) => {
             let fb_color = flatbuf::Color::new(c.r, c.g, c.b, c.a);
-            let val = flatbuf::ColorVal::create(fbb, &flatbuf::ColorValArgs {
-                value: Some(&fb_color),
-            });
+            let val = flatbuf::ColorVal::create(
+                fbb,
+                &flatbuf::ColorValArgs {
+                    value: Some(&fb_color),
+                },
+            );
             (flatbuf::PropValueUnion::ColorVal, val.as_union_value())
         }
-        PropValue::Rect { .. } | PropValue::Null => {
-            (flatbuf::PropValueUnion::NONE, flatbuffers::WIPOffset::<flatbuf::StringVal>::new(0).as_union_value())
-        }
+        PropValue::Rect { .. } | PropValue::Null => (
+            flatbuf::PropValueUnion::NONE,
+            flatbuffers::WIPOffset::<flatbuf::StringVal>::new(0).as_union_value(),
+        ),
     };
-    flatbuf::PropEntry::create(fbb, &flatbuf::PropEntryArgs {
-        key: Some(key_offset),
-        value_type,
-        value: Some(value_offset),
-    })
+    flatbuf::PropEntry::create(
+        fbb,
+        &flatbuf::PropEntryArgs {
+            key: Some(key_offset),
+            value_type,
+            value: Some(value_offset),
+        },
+    )
 }
 
 fn fb_layout_to_engine(ls: &flatbuf::LayoutStyle<'_>) -> LayoutStyle {
@@ -561,7 +636,11 @@ fn fb_layout_to_engine(ls: &flatbuf::LayoutStyle<'_>) -> LayoutStyle {
         min_height: fb_dimension_to_engine(ls.min_height()),
         max_width: fb_dimension_to_engine(ls.max_width()),
         max_height: fb_dimension_to_engine(ls.max_height()),
-        aspect_ratio: if ls.aspect_ratio() == 0.0 { None } else { Some(ls.aspect_ratio()) },
+        aspect_ratio: if ls.aspect_ratio() == 0.0 {
+            None
+        } else {
+            Some(ls.aspect_ratio())
+        },
         margin: ls.margin().map(fb_edges_to_engine).unwrap_or_default(),
         padding: ls.padding().map(fb_edges_to_engine).unwrap_or_default(),
         gap: ls.gap(),
@@ -644,40 +723,55 @@ fn engine_layout_to_fb<'a>(
     let max_width = engine_dimension_to_fb(&style.max_width);
     let max_height = engine_dimension_to_fb(&style.max_height);
     let margin = flatbuf::Edges::new(
-        style.margin.top, style.margin.right, style.margin.bottom, style.margin.left,
+        style.margin.top,
+        style.margin.right,
+        style.margin.bottom,
+        style.margin.left,
     );
     let padding = flatbuf::Edges::new(
-        style.padding.top, style.padding.right, style.padding.bottom, style.padding.left,
+        style.padding.top,
+        style.padding.right,
+        style.padding.bottom,
+        style.padding.left,
     );
 
-    flatbuf::LayoutStyle::create(fbb, &flatbuf::LayoutStyleArgs {
-        display,
-        position,
-        flex_direction,
-        flex_wrap,
-        flex_grow: style.flex_grow,
-        flex_shrink: style.flex_shrink,
-        justify_content,
-        align_items,
-        width: Some(&width),
-        height: Some(&height),
-        min_width: Some(&min_width),
-        min_height: Some(&min_height),
-        max_width: Some(&max_width),
-        max_height: Some(&max_height),
-        aspect_ratio: style.aspect_ratio.unwrap_or(0.0),
-        margin: Some(&margin),
-        padding: Some(&padding),
-        gap: style.gap,
-        overflow,
-    })
+    flatbuf::LayoutStyle::create(
+        fbb,
+        &flatbuf::LayoutStyleArgs {
+            display,
+            position,
+            flex_direction,
+            flex_wrap,
+            flex_grow: style.flex_grow,
+            flex_shrink: style.flex_shrink,
+            justify_content,
+            align_items,
+            width: Some(&width),
+            height: Some(&height),
+            min_width: Some(&min_width),
+            min_height: Some(&min_height),
+            max_width: Some(&max_width),
+            max_height: Some(&max_height),
+            aspect_ratio: style.aspect_ratio.unwrap_or(0.0),
+            margin: Some(&margin),
+            padding: Some(&padding),
+            gap: style.gap,
+            overflow,
+        },
+    )
 }
 
 fn engine_dimension_to_fb(dim: &crate::layout::Dimension) -> flatbuf::Dimension {
     match dim {
-        crate::layout::Dimension::Auto => flatbuf::Dimension::new(flatbuf::DimensionType::Auto, 0.0),
-        crate::layout::Dimension::Points(v) => flatbuf::Dimension::new(flatbuf::DimensionType::Points, *v),
-        crate::layout::Dimension::Percent(v) => flatbuf::Dimension::new(flatbuf::DimensionType::Percent, *v),
+        crate::layout::Dimension::Auto => {
+            flatbuf::Dimension::new(flatbuf::DimensionType::Auto, 0.0)
+        }
+        crate::layout::Dimension::Points(v) => {
+            flatbuf::Dimension::new(flatbuf::DimensionType::Points, *v)
+        }
+        crate::layout::Dimension::Percent(v) => {
+            flatbuf::Dimension::new(flatbuf::DimensionType::Percent, *v)
+        }
     }
 }
 
@@ -747,7 +841,10 @@ mod tests {
             view_type: ViewType::Text,
             props: {
                 let mut p = HashMap::new();
-                p.insert("text".to_string(), PropValue::String("Hello FlatBuf".to_string()));
+                p.insert(
+                    "text".to_string(),
+                    PropValue::String("Hello FlatBuf".to_string()),
+                );
                 p.insert("fontSize".to_string(), PropValue::F32(16.0));
                 p.insert("bold".to_string(), PropValue::Bool(true));
                 p.insert("count".to_string(), PropValue::I32(7));
@@ -758,11 +855,19 @@ mod tests {
                 flex_direction: crate::layout::FlexDirection::Row,
                 width: crate::layout::Dimension::Points(100.0),
                 height: crate::layout::Dimension::Percent(50.0),
-                margin: crate::layout::Edges { top: 8.0, right: 8.0, bottom: 8.0, left: 8.0 },
+                margin: crate::layout::Edges {
+                    top: 8.0,
+                    right: 8.0,
+                    bottom: 8.0,
+                    left: 8.0,
+                },
                 ..LayoutStyle::default()
             },
         });
-        batch.push(IrCommand::AppendChild { parent: NodeId(1), child: NodeId(2) });
+        batch.push(IrCommand::AppendChild {
+            parent: NodeId(1),
+            child: NodeId(2),
+        });
         batch.push(IrCommand::UpdateProps {
             id: NodeId(2),
             diff: {
@@ -783,7 +888,10 @@ mod tests {
             child: NodeId(3),
             before: NodeId(2),
         });
-        batch.push(IrCommand::RemoveChild { parent: NodeId(1), child: NodeId(3) });
+        batch.push(IrCommand::RemoveChild {
+            parent: NodeId(1),
+            child: NodeId(3),
+        });
         batch.push(IrCommand::SetRootNode { id: NodeId(1) });
 
         // Encode to FlatBuffers
@@ -807,7 +915,12 @@ mod tests {
 
         // Verify second CreateNode with props and style
         match &decoded.commands[1] {
-            IrCommand::CreateNode { id, view_type, props, style } => {
+            IrCommand::CreateNode {
+                id,
+                view_type,
+                props,
+                style,
+            } => {
                 assert_eq!(*id, NodeId(2));
                 assert_eq!(*view_type, ViewType::Text);
                 assert_eq!(props.len(), 4);
@@ -815,8 +928,13 @@ mod tests {
                     PropValue::String(s) => assert_eq!(s, "Hello FlatBuf"),
                     _ => panic!("Expected String prop"),
                 }
-                assert!(matches!(style.flex_direction, crate::layout::FlexDirection::Row));
-                assert!(matches!(style.width, crate::layout::Dimension::Points(v) if (v - 100.0).abs() < 0.01));
+                assert!(matches!(
+                    style.flex_direction,
+                    crate::layout::FlexDirection::Row
+                ));
+                assert!(
+                    matches!(style.width, crate::layout::Dimension::Points(v) if (v - 100.0).abs() < 0.01)
+                );
             }
             _ => panic!("Expected CreateNode"),
         }
@@ -866,7 +984,10 @@ mod tests {
             view_type: ViewType::Container,
             props: {
                 let mut p = HashMap::new();
-                p.insert("bg".to_string(), PropValue::Color(crate::platform::Color::rgba(255, 0, 128, 0.5)));
+                p.insert(
+                    "bg".to_string(),
+                    PropValue::Color(crate::platform::Color::rgba(255, 0, 128, 0.5)),
+                );
                 p
             },
             style: LayoutStyle::default(),
@@ -876,17 +997,15 @@ mod tests {
         let decoded = decode_batch_flatbuf(&encoded).unwrap();
 
         match &decoded.commands[0] {
-            IrCommand::CreateNode { props, .. } => {
-                match &props["bg"] {
-                    PropValue::Color(c) => {
-                        assert_eq!(c.r, 255);
-                        assert_eq!(c.g, 0);
-                        assert_eq!(c.b, 128);
-                        assert!((c.a - 0.5).abs() < 0.01);
-                    }
-                    _ => panic!("Expected Color prop"),
+            IrCommand::CreateNode { props, .. } => match &props["bg"] {
+                PropValue::Color(c) => {
+                    assert_eq!(c.r, 255);
+                    assert_eq!(c.g, 0);
+                    assert_eq!(c.b, 128);
+                    assert!((c.a - 0.5).abs() < 0.01);
                 }
-            }
+                _ => panic!("Expected Color prop"),
+            },
             _ => panic!("Expected CreateNode"),
         }
     }
@@ -907,9 +1026,12 @@ mod tests {
         let fb_bytes = encode_batch_flatbuf(&batch);
 
         // FlatBuffers should be smaller than JSON for structured data
-        assert!(fb_bytes.len() < json_bytes.len(),
+        assert!(
+            fb_bytes.len() < json_bytes.len(),
             "FlatBuffers ({} bytes) should be smaller than JSON ({} bytes)",
-            fb_bytes.len(), json_bytes.len());
+            fb_bytes.len(),
+            json_bytes.len()
+        );
     }
 
     /// Build a realistic IrBatch with N nodes for benchmarking.
@@ -918,7 +1040,11 @@ mod tests {
         for i in 1..=n {
             batch.push(IrCommand::CreateNode {
                 id: NodeId(i),
-                view_type: if i % 5 == 0 { ViewType::Text } else { ViewType::Container },
+                view_type: if i % 5 == 0 {
+                    ViewType::Text
+                } else {
+                    ViewType::Container
+                },
                 props: {
                     let mut p = HashMap::new();
                     p.insert("label".to_string(), PropValue::String(format!("node_{i}")));
@@ -931,7 +1057,12 @@ mod tests {
                 style: LayoutStyle {
                     width: crate::layout::Dimension::Points(100.0),
                     height: crate::layout::Dimension::Points(40.0),
-                    margin: crate::layout::Edges { top: 4.0, right: 4.0, bottom: 4.0, left: 4.0 },
+                    margin: crate::layout::Edges {
+                        top: 4.0,
+                        right: 4.0,
+                        bottom: 4.0,
+                        left: 4.0,
+                    },
                     ..LayoutStyle::default()
                 },
             });
@@ -989,13 +1120,18 @@ mod tests {
         println!("│ Encode            │  {json_encode_us:>10}  │  {fb_encode_us:>18}  │");
         println!("│ Decode            │  {json_decode_us:>10}  │  {fb_decode_us:>18}  │");
         println!("├───────────────────┼──────────────┼──────────────────────┤");
-        println!("│ Size (bytes)      │  {json_size:>10}  │  {fb_size:>18}  │",
-            json_size = json_bytes.len(), fb_size = fb_bytes.len());
+        println!(
+            "│ Size (bytes)      │  {json_size:>10}  │  {fb_size:>18}  │",
+            json_size = json_bytes.len(),
+            fb_size = fb_bytes.len()
+        );
         println!("└───────────────────┴──────────────┴──────────────────────┘\n");
 
         // FlatBuffers should be faster for decoding (zero-copy)
         // We don't assert on speed (CI variability), just that both work
-        assert_eq!(decode_batch_flatbuf(&fb_bytes).unwrap().commands.len(),
-                   decode_batch(&json_bytes).unwrap().commands.len());
+        assert_eq!(
+            decode_batch_flatbuf(&fb_bytes).unwrap().commands.len(),
+            decode_batch(&json_bytes).unwrap().commands.len()
+        );
     }
 }

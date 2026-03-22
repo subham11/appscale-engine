@@ -13,9 +13,9 @@
 
 use crate::ir::{IrBatch, IrCommand};
 use crate::layout::LayoutEngine;
-use crate::tree::{NodeId, ShadowTree};
 use crate::platform::ViewType;
-use serde::{Serialize, Deserialize};
+use crate::tree::{NodeId, ShadowTree};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -96,7 +96,10 @@ pub fn validate_generated_batch(batch: &IrBatch) -> Vec<ValidationIssue> {
                             issues.push(ValidationIssue {
                                 command_index: idx,
                                 severity: IssueSeverity::Warning,
-                                message: format!("Text node {} has no 'text' or 'content' prop", id.0),
+                                message: format!(
+                                    "Text node {} has no 'text' or 'content' prop",
+                                    id.0
+                                ),
                             });
                         }
                     }
@@ -133,10 +136,16 @@ pub fn validate_generated_batch(batch: &IrBatch) -> Vec<ValidationIssue> {
     }
 
     // Warn about orphan nodes (created but never parented and not root)
-    let has_root = batch.commands.iter().any(|c| matches!(c, IrCommand::SetRootNode { .. }));
+    let has_root = batch
+        .commands
+        .iter()
+        .any(|c| matches!(c, IrCommand::SetRootNode { .. }));
     if has_root {
-        for (&id, _) in &created_ids {
-            let is_root = batch.commands.iter().any(|c| matches!(c, IrCommand::SetRootNode { id: r } if r.0 == id));
+        for &id in created_ids.keys() {
+            let is_root = batch
+                .commands
+                .iter()
+                .any(|c| matches!(c, IrCommand::SetRootNode { id: r } if r.0 == id));
             if !is_root && !parented_ids.contains(&id) {
                 issues.push(ValidationIssue {
                     command_index: 0,
@@ -207,15 +216,15 @@ pub fn analyze_layout(tree: &ShadowTree, _layout: &LayoutEngine) -> Vec<LayoutHi
     detect_large_flat_lists(root, tree, &mut hints);
 
     // Sort by impact (highest first)
-    hints.sort_by(|a, b| b.impact.partial_cmp(&a.impact).unwrap_or(std::cmp::Ordering::Equal));
+    hints.sort_by(|a, b| {
+        b.impact
+            .partial_cmp(&a.impact)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     hints
 }
 
-fn detect_unnecessary_wrappers(
-    node_id: NodeId,
-    tree: &ShadowTree,
-    hints: &mut Vec<LayoutHint>,
-) {
+fn detect_unnecessary_wrappers(node_id: NodeId, tree: &ShadowTree, hints: &mut Vec<LayoutHint>) {
     let node = match tree.get(node_id) {
         Some(n) => n,
         None => return,
@@ -277,11 +286,7 @@ fn detect_deep_nesting(
     }
 }
 
-fn detect_large_flat_lists(
-    node_id: NodeId,
-    tree: &ShadowTree,
-    hints: &mut Vec<LayoutHint>,
-) {
+fn detect_large_flat_lists(node_id: NodeId, tree: &ShadowTree, hints: &mut Vec<LayoutHint>) {
     const LARGE_LIST_THRESHOLD: usize = 50;
 
     let node = match tree.get(node_id) {
@@ -290,7 +295,8 @@ fn detect_large_flat_lists(
     };
 
     // A ScrollView or View with many direct children
-    if (matches!(node.view_type, ViewType::ScrollView) || matches!(node.view_type, ViewType::Container))
+    if (matches!(node.view_type, ViewType::ScrollView)
+        || matches!(node.view_type, ViewType::Container))
         && node.children.len() > LARGE_LIST_THRESHOLD
     {
         hints.push(LayoutHint {
@@ -300,7 +306,9 @@ fn detect_large_flat_lists(
             },
             description: format!(
                 "{:?} node {} has {} children — consider FlatList with recycling",
-                node.view_type, node_id.0, node.children.len()
+                node.view_type,
+                node_id.0,
+                node.children.len()
             ),
             impact: 0.8,
         });
@@ -378,15 +386,16 @@ pub fn export_training_record(
     tree: Option<&ShadowTree>,
     tags: Vec<String>,
 ) -> TrainingRecord {
-    let batches = recorded_batches.iter().map(|tb| {
-        TrainingBatch {
+    let batches = recorded_batches
+        .iter()
+        .map(|tb| TrainingBatch {
             offset_ms: tb.offset_ms,
             batch: tb.batch.clone(),
             annotation: None,
-        }
-    }).collect();
+        })
+        .collect();
 
-    let final_tree = tree.map(|t| snapshot_tree_for_training(t));
+    let final_tree = tree.map(snapshot_tree_for_training);
 
     TrainingRecord {
         session_id: session_id.to_string(),
@@ -463,9 +472,18 @@ pub fn compute_training_stats(record: &TrainingRecord) -> TrainingStats {
 
         for cmd in &tb.batch.commands {
             let cmd_type = match cmd {
-                IrCommand::CreateNode { id, .. } => { node_ids.insert(id.0); "CreateNode" }
-                IrCommand::UpdateProps { id, .. } => { node_ids.insert(id.0); "UpdateProps" }
-                IrCommand::UpdateStyle { id, .. } => { node_ids.insert(id.0); "UpdateStyle" }
+                IrCommand::CreateNode { id, .. } => {
+                    node_ids.insert(id.0);
+                    "CreateNode"
+                }
+                IrCommand::UpdateProps { id, .. } => {
+                    node_ids.insert(id.0);
+                    "UpdateProps"
+                }
+                IrCommand::UpdateStyle { id, .. } => {
+                    node_ids.insert(id.0);
+                    "UpdateStyle"
+                }
                 IrCommand::AppendChild { parent, child } => {
                     node_ids.insert(parent.0);
                     node_ids.insert(child.0);
@@ -473,7 +491,10 @@ pub fn compute_training_stats(record: &TrainingRecord) -> TrainingStats {
                 }
                 IrCommand::InsertBefore { .. } => "InsertBefore",
                 IrCommand::RemoveChild { .. } => "RemoveChild",
-                IrCommand::SetRootNode { id } => { node_ids.insert(id.0); "SetRootNode" }
+                IrCommand::SetRootNode { id } => {
+                    node_ids.insert(id.0);
+                    "SetRootNode"
+                }
             };
             *histogram.entry(cmd_type.to_string()).or_insert(0) += 1;
         }
@@ -484,7 +505,11 @@ pub fn compute_training_stats(record: &TrainingRecord) -> TrainingStats {
         total_commands,
         command_histogram: histogram,
         session_duration_ms: max_offset,
-        avg_batch_size: if total_batches > 0 { total_commands as f64 / total_batches as f64 } else { 0.0 },
+        avg_batch_size: if total_batches > 0 {
+            total_commands as f64 / total_batches as f64
+        } else {
+            0.0
+        },
         unique_node_ids: node_ids.len(),
     }
 }
@@ -530,7 +555,10 @@ mod tests {
     fn validate_well_formed_batch() {
         let batch = make_batch();
         let issues = validate_generated_batch(&batch);
-        let errors: Vec<_> = issues.iter().filter(|i| i.severity == IssueSeverity::Error).collect();
+        let errors: Vec<_> = issues
+            .iter()
+            .filter(|i| i.severity == IssueSeverity::Error)
+            .collect();
         assert!(errors.is_empty(), "Expected no errors: {:?}", errors);
     }
 
@@ -551,7 +579,9 @@ mod tests {
         });
 
         let issues = validate_generated_batch(&batch);
-        assert!(issues.iter().any(|i| i.severity == IssueSeverity::Error && i.message.contains("Duplicate")));
+        assert!(issues
+            .iter()
+            .any(|i| i.severity == IssueSeverity::Error && i.message.contains("Duplicate")));
     }
 
     #[test]
@@ -569,7 +599,9 @@ mod tests {
         });
 
         let issues = validate_generated_batch(&batch);
-        assert!(issues.iter().any(|i| i.severity == IssueSeverity::Error && i.message.contains("unknown parent")));
+        assert!(issues
+            .iter()
+            .any(|i| i.severity == IssueSeverity::Error && i.message.contains("unknown parent")));
     }
 
     #[test]
@@ -583,7 +615,9 @@ mod tests {
         });
 
         let issues = validate_generated_batch(&batch);
-        assert!(issues.iter().any(|i| i.severity == IssueSeverity::Warning && i.message.contains("no 'text'")));
+        assert!(issues
+            .iter()
+            .any(|i| i.severity == IssueSeverity::Warning && i.message.contains("no 'text'")));
     }
 
     #[test]
@@ -611,7 +645,8 @@ mod tests {
         let record = export_training_record(
             "session-001",
             "ios",
-            390.0, 844.0,
+            390.0,
+            844.0,
             &timestamped,
             None,
             vec!["test".to_string()],
@@ -633,8 +668,16 @@ mod tests {
             screen_width: 1920.0,
             screen_height: 1080.0,
             batches: vec![
-                TrainingBatch { offset_ms: 0.0, batch: batch.clone(), annotation: None },
-                TrainingBatch { offset_ms: 16.6, batch: batch.clone(), annotation: None },
+                TrainingBatch {
+                    offset_ms: 0.0,
+                    batch: batch.clone(),
+                    annotation: None,
+                },
+                TrainingBatch {
+                    offset_ms: 16.6,
+                    batch: batch.clone(),
+                    annotation: None,
+                },
             ],
             final_tree: None,
             tags: vec![],
@@ -659,7 +702,11 @@ mod tests {
             screen_width: 390.0,
             screen_height: 844.0,
             existing_node_count: None,
-            allowed_components: Some(vec!["View".to_string(), "TextInput".to_string(), "Button".to_string()]),
+            allowed_components: Some(vec![
+                "View".to_string(),
+                "TextInput".to_string(),
+                "Button".to_string(),
+            ]),
         };
 
         let json = serde_json::to_string(&req).unwrap();

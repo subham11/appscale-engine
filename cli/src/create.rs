@@ -6,7 +6,7 @@
 //! - Platform configs (Xcode project stub, Gradle stub, webpack config)
 //! - package.json with @appscale/core dependency
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
@@ -142,8 +142,7 @@ pub fn init() {
 }
 "#,
     )?;
-    fs::create_dir_all(project_dir.join("rust/src"))
-        .context("Failed to create rust/src")?;
+    fs::create_dir_all(project_dir.join("rust/src")).context("Failed to create rust/src")?;
 
     // .gitignore
     write_file(
@@ -185,6 +184,5 @@ fn write_file(path: &Path, content: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(path, content)
-        .with_context(|| format!("Failed to write: {}", path.display()))
+    fs::write(path, content).with_context(|| format!("Failed to write: {}", path.display()))
 }

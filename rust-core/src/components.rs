@@ -11,8 +11,8 @@
 //! "Image", etc. The engine resolves them here to determine how to create and
 //! configure the native view.
 
-use crate::platform::{ViewType, PropValue, PropsDiff};
 use crate::layout::LayoutStyle;
+use crate::platform::{PropValue, PropsDiff, ViewType};
 use std::collections::HashMap;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -127,7 +127,9 @@ impl ComponentRegistry {
 }
 
 impl Default for ComponentRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -527,7 +529,10 @@ mod tests {
     #[test]
     fn test_view_type_mapping() {
         let registry = ComponentRegistry::new();
-        assert_eq!(registry.resolve_view_type("View"), Some(ViewType::Container));
+        assert_eq!(
+            registry.resolve_view_type("View"),
+            Some(ViewType::Container)
+        );
         assert_eq!(registry.resolve_view_type("Text"), Some(ViewType::Text));
         assert_eq!(registry.resolve_view_type("Image"), Some(ViewType::Image));
         assert_eq!(registry.resolve_view_type("Button"), Some(ViewType::Button));
@@ -538,11 +543,26 @@ mod tests {
     #[test]
     fn test_children_mode() {
         let registry = ComponentRegistry::new();
-        assert_eq!(registry.get("View").unwrap().children_mode, ChildrenMode::Container);
-        assert_eq!(registry.get("Text").unwrap().children_mode, ChildrenMode::TextOnly);
-        assert_eq!(registry.get("Image").unwrap().children_mode, ChildrenMode::Leaf);
-        assert_eq!(registry.get("ActivityIndicator").unwrap().children_mode, ChildrenMode::Leaf);
-        assert_eq!(registry.get("ScrollView").unwrap().children_mode, ChildrenMode::Container);
+        assert_eq!(
+            registry.get("View").unwrap().children_mode,
+            ChildrenMode::Container
+        );
+        assert_eq!(
+            registry.get("Text").unwrap().children_mode,
+            ChildrenMode::TextOnly
+        );
+        assert_eq!(
+            registry.get("Image").unwrap().children_mode,
+            ChildrenMode::Leaf
+        );
+        assert_eq!(
+            registry.get("ActivityIndicator").unwrap().children_mode,
+            ChildrenMode::Leaf
+        );
+        assert_eq!(
+            registry.get("ScrollView").unwrap().children_mode,
+            ChildrenMode::Container
+        );
     }
 
     #[test]

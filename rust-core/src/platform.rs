@@ -5,7 +5,7 @@
 //! to enable platform-adaptive rendering.
 
 use crate::tree::NodeId;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -39,7 +39,13 @@ pub trait PlatformBridge: Send + Sync {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PlatformId { Ios, Android, Macos, Windows, Web }
+pub enum PlatformId {
+    Ios,
+    Android,
+    Macos,
+    Windows,
+    Web,
+}
 
 /// Opaque handle to a platform-native view.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -95,7 +101,12 @@ pub enum PropValue {
     I32(i32),
     Bool(bool),
     Color(Color),
-    Rect { x: f32, y: f32, width: f32, height: f32 },
+    Rect {
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    },
     Null,
 }
 
@@ -106,13 +117,17 @@ pub struct PropsDiff {
 }
 
 impl PropsDiff {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn set(&mut self, key: impl Into<String>, value: PropValue) {
         self.changes.insert(key.into(), value);
     }
 
-    pub fn is_empty(&self) -> bool { self.changes.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.changes.is_empty()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -149,10 +164,23 @@ pub struct TextStyle {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum FontWeight { Thin, Light, Regular, Medium, SemiBold, Bold, Heavy }
+pub enum FontWeight {
+    Thin,
+    Light,
+    Regular,
+    Medium,
+    SemiBold,
+    Bold,
+    Heavy,
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum TextAlign { Left, Center, Right, Justify }
+pub enum TextAlign {
+    Left,
+    Center,
+    Right,
+    Justify,
+}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TextMetrics {
@@ -209,6 +237,12 @@ pub mod mock {
         pub ops: Mutex<Vec<MockOp>>,
     }
 
+    impl Default for MockPlatform {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl MockPlatform {
         pub fn new() -> Self {
             Self {
@@ -219,18 +253,30 @@ pub mod mock {
     }
 
     impl PlatformBridge for MockPlatform {
-        fn platform_id(&self) -> PlatformId { PlatformId::Web }
+        fn platform_id(&self) -> PlatformId {
+            PlatformId::Web
+        }
 
         fn create_view(&self, view_type: ViewType, node_id: NodeId) -> NativeHandle {
             let mut h = self.next_handle.lock().unwrap();
             let handle = NativeHandle(*h);
             *h += 1;
-            self.ops.lock().unwrap().push(MockOp::CreateView(view_type, node_id));
+            self.ops
+                .lock()
+                .unwrap()
+                .push(MockOp::CreateView(view_type, node_id));
             handle
         }
 
-        fn update_view(&self, handle: NativeHandle, props: &PropsDiff) -> Result<(), PlatformError> {
-            self.ops.lock().unwrap().push(MockOp::UpdateView(handle, props.clone()));
+        fn update_view(
+            &self,
+            handle: NativeHandle,
+            props: &PropsDiff,
+        ) -> Result<(), PlatformError> {
+            self.ops
+                .lock()
+                .unwrap()
+                .push(MockOp::UpdateView(handle, props.clone()));
             Ok(())
         }
 
@@ -239,11 +285,17 @@ pub mod mock {
         }
 
         fn insert_child(&self, parent: NativeHandle, child: NativeHandle, index: usize) {
-            self.ops.lock().unwrap().push(MockOp::InsertChild(parent, child, index));
+            self.ops
+                .lock()
+                .unwrap()
+                .push(MockOp::InsertChild(parent, child, index));
         }
 
         fn remove_child(&self, parent: NativeHandle, child: NativeHandle) {
-            self.ops.lock().unwrap().push(MockOp::RemoveChild(parent, child));
+            self.ops
+                .lock()
+                .unwrap()
+                .push(MockOp::RemoveChild(parent, child));
         }
 
         fn measure_text(&self, _text: &str, style: &TextStyle, _max_width: f32) -> TextMetrics {
@@ -257,11 +309,18 @@ pub mod mock {
         }
 
         fn screen_size(&self) -> ScreenSize {
-            ScreenSize { width: 390.0, height: 844.0 }
+            ScreenSize {
+                width: 390.0,
+                height: 844.0,
+            }
         }
 
-        fn scale_factor(&self) -> f32 { 3.0 }
+        fn scale_factor(&self) -> f32 {
+            3.0
+        }
 
-        fn supports(&self, _cap: PlatformCapability) -> bool { false }
+        fn supports(&self, _cap: PlatformCapability) -> bool {
+            false
+        }
     }
 }

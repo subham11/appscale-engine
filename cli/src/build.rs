@@ -18,7 +18,11 @@ pub struct BuildConfig {
 
 impl BuildConfig {
     pub fn profile(&self) -> &str {
-        if self.release { "release" } else { "debug" }
+        if self.release {
+            "release"
+        } else {
+            "debug"
+        }
     }
 
     pub fn rust_target(&self) -> &str {

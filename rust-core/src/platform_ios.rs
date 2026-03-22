@@ -12,8 +12,8 @@
 
 use crate::platform::*;
 use crate::tree::NodeId;
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// iOS platform bridge.
 ///
@@ -38,7 +38,10 @@ impl IosPlatform {
             next_handle: Mutex::new(1),
             views: Mutex::new(HashMap::new()),
             // Default: iPhone 15 logical resolution
-            screen: ScreenSize { width: 390.0, height: 844.0 },
+            screen: ScreenSize {
+                width: 390.0,
+                height: 844.0,
+            },
             scale: 3.0,
         }
     }
@@ -55,7 +58,9 @@ impl IosPlatform {
 }
 
 impl Default for IosPlatform {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PlatformBridge for IosPlatform {
@@ -68,11 +73,14 @@ impl PlatformBridge for IosPlatform {
         let handle = NativeHandle(*h);
         *h += 1;
 
-        self.views.lock().unwrap().insert(handle.0, ViewRecord {
-            _view_type: view_type,
-            _node_id: node_id,
-            children: Vec::new(),
-        });
+        self.views.lock().unwrap().insert(
+            handle.0,
+            ViewRecord {
+                _view_type: view_type,
+                _node_id: node_id,
+                children: Vec::new(),
+            },
+        );
 
         handle
     }
@@ -136,14 +144,15 @@ impl PlatformBridge for IosPlatform {
     }
 
     fn supports(&self, capability: PlatformCapability) -> bool {
-        matches!(capability,
+        matches!(
+            capability,
             PlatformCapability::Haptics
-            | PlatformCapability::Biometrics
-            | PlatformCapability::PushNotifications
-            | PlatformCapability::NativeDatePicker
-            | PlatformCapability::NativeShare
-            | PlatformCapability::BackgroundFetch
-            | PlatformCapability::ContextMenu
+                | PlatformCapability::Biometrics
+                | PlatformCapability::PushNotifications
+                | PlatformCapability::NativeDatePicker
+                | PlatformCapability::NativeShare
+                | PlatformCapability::BackgroundFetch
+                | PlatformCapability::ContextMenu
         )
     }
 }
@@ -201,7 +210,10 @@ mod tests {
     #[test]
     fn test_ios_text_measurement() {
         let platform = IosPlatform::new();
-        let style = TextStyle { font_size: Some(16.0), ..TextStyle::default() };
+        let style = TextStyle {
+            font_size: Some(16.0),
+            ..TextStyle::default()
+        };
         let metrics = platform.measure_text("Hello iOS", &style, 200.0);
         assert!(metrics.width > 0.0);
         assert!(metrics.height > 0.0);
@@ -211,7 +223,10 @@ mod tests {
     #[test]
     fn test_ios_text_wrapping() {
         let platform = IosPlatform::new();
-        let style = TextStyle { font_size: Some(16.0), ..TextStyle::default() };
+        let style = TextStyle {
+            font_size: Some(16.0),
+            ..TextStyle::default()
+        };
         // Long text that should wrap in a narrow container
         let metrics = platform.measure_text("This is a longer text that should wrap", &style, 50.0);
         assert!(metrics.line_count > 1);

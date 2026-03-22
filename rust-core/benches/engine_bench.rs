@@ -9,8 +9,8 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 
 use appscale_core::ir::{decode_batch, encode_batch, IrBatch, IrCommand};
 use appscale_core::platform::{
-    NativeHandle, PlatformBridge, PlatformCapability, PlatformError, PlatformId, PropsDiff,
-    PropValue, ScreenSize, TextMetrics, TextStyle, ViewType,
+    NativeHandle, PlatformBridge, PlatformCapability, PlatformError, PlatformId, PropValue,
+    PropsDiff, ScreenSize, TextMetrics, TextStyle, ViewType,
 };
 use appscale_core::tree::NodeId;
 use appscale_core::Engine;
@@ -101,6 +101,7 @@ fn make_batch(n: u64) -> IrBatch {
     batch
 }
 
+#[allow(dead_code)]
 fn make_batch_with_text(n: u64) -> IrBatch {
     let mut batch = IrBatch::new(1);
     batch.push(IrCommand::CreateNode {
@@ -139,7 +140,9 @@ fn make_tree_batch(depth: u64, breadth: u64) -> IrBatch {
         props: HashMap::new(),
         style: Default::default(),
     });
-    batch.push(IrCommand::SetRootNode { id: NodeId(root_id) });
+    batch.push(IrCommand::SetRootNode {
+        id: NodeId(root_id),
+    });
     next_id += 1;
 
     fn add_children(
@@ -235,10 +238,10 @@ fn bench_tree_apply(c: &mut Criterion) {
 
     // (depth, breadth) → approximate total nodes
     let configs: &[(u64, u64, &str)] = &[
-        (3, 3, "39_nodes"),    // 3^0 + 3^1 + 3^2 + 3^3 = 40
-        (4, 3, "121_nodes"),   // ~121
-        (3, 5, "156_nodes"),   // ~156
-        (5, 3, "364_nodes"),   // ~364
+        (3, 3, "39_nodes"),  // 3^0 + 3^1 + 3^2 + 3^3 = 40
+        (4, 3, "121_nodes"), // ~121
+        (3, 5, "156_nodes"), // ~156
+        (5, 3, "364_nodes"), // ~364
     ];
 
     for &(depth, breadth, label) in configs {
@@ -297,20 +300,16 @@ fn bench_full_pipeline(c: &mut Criterion) {
         let batch = make_batch(size);
         let bytes = encode_batch(&batch).unwrap();
 
-        group.bench_with_input(
-            BenchmarkId::from_parameter(size),
-            &bytes,
-            |b, data| {
-                b.iter_with_setup(
-                    || Engine::new(Arc::new(BenchPlatform::new())),
-                    |mut engine| {
-                        let batch = decode_batch(data).unwrap();
-                        engine.apply_commit(black_box(&batch)).unwrap();
-                        let _ = engine.process_frame();
-                    },
-                );
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(size), &bytes, |b, data| {
+            b.iter_with_setup(
+                || Engine::new(Arc::new(BenchPlatform::new())),
+                |mut engine| {
+                    let batch = decode_batch(data).unwrap();
+                    engine.apply_commit(black_box(&batch)).unwrap();
+                    let _ = engine.process_frame();
+                },
+            );
+        });
     }
     group.finish();
 }

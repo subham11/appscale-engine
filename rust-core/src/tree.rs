@@ -7,7 +7,7 @@
 //! - Current props for each node
 //! - Native view handle mappings
 
-use crate::platform::{NativeHandle, ViewType, PropsDiff, PropValue};
+use crate::platform::{NativeHandle, PropValue, PropsDiff, ViewType};
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
@@ -43,6 +43,12 @@ pub struct ShadowNode {
 pub struct ShadowTree {
     nodes: FxHashMap<NodeId, ShadowNode>,
     root: Option<NodeId>,
+}
+
+impl Default for ShadowTree {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ShadowTree {
@@ -126,12 +132,7 @@ impl ShadowTree {
     }
 
     /// Insert a child before another child in a parent's children list.
-    pub fn insert_before(
-        &mut self,
-        parent_id: NodeId,
-        child_id: NodeId,
-        before_id: NodeId,
-    ) {
+    pub fn insert_before(&mut self, parent_id: NodeId, child_id: NodeId, before_id: NodeId) {
         if let Some(child) = self.nodes.get_mut(&child_id) {
             child.parent = Some(parent_id);
         }
@@ -158,7 +159,9 @@ impl ShadowTree {
 
     /// Recursively remove a node and all its descendants.
     fn remove_subtree(&mut self, id: NodeId) {
-        let children = self.nodes.get(&id)
+        let children = self
+            .nodes
+            .get(&id)
             .map(|n| n.children.clone())
             .unwrap_or_default();
 
@@ -179,14 +182,16 @@ impl ShadowTree {
     /// Take pending props (moves them out, leaving empty).
     /// Called by the mount phase after applying to native view.
     pub fn take_pending_props(&mut self, id: NodeId) -> PropsDiff {
-        self.nodes.get_mut(&id)
+        self.nodes
+            .get_mut(&id)
             .map(|n| std::mem::take(&mut n.pending_props))
             .unwrap_or_default()
     }
 
     /// Get the ordered children of a node.
     pub fn children_of(&self, id: NodeId) -> &[NodeId] {
-        self.nodes.get(&id)
+        self.nodes
+            .get(&id)
             .map(|n| n.children.as_slice())
             .unwrap_or(&[])
     }

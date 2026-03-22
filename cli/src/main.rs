@@ -5,12 +5,12 @@
 //! - `appscale dev` — Launch development server with hot reload
 //! - `appscale build <platform>` — Production build for a target platform
 
-use clap::{Parser, Subcommand};
 use anyhow::Result;
+use clap::{Parser, Subcommand};
 
+mod build;
 mod create;
 mod dev;
-mod build;
 
 /// AppScale — Cross-platform React UI engine
 #[derive(Parser)]
@@ -62,14 +62,12 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Create { name, template } => {
-            create::run(&name, &template)
-        }
-        Commands::Dev { port, platform } => {
-            dev::run(port, &platform)
-        }
-        Commands::Build { platform, release, output } => {
-            build::run(&platform, release, &output)
-        }
+        Commands::Create { name, template } => create::run(&name, &template),
+        Commands::Dev { port, platform } => dev::run(port, &platform),
+        Commands::Build {
+            platform,
+            release,
+            output,
+        } => build::run(&platform, release, &output),
     }
 }

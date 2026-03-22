@@ -12,8 +12,8 @@
 //! Not every visual node is an accessibility node — we merge/prune to match
 //! how screen readers expect to navigate.
 
-use crate::tree::NodeId;
 use crate::platform::NativeHandle;
+use crate::tree::NodeId;
 use std::collections::HashMap;
 
 /// Semantic role of a UI element (maps to platform accessibility APIs).
@@ -62,7 +62,7 @@ pub enum AccessibilityRole {
 pub struct AccessibilityState {
     pub disabled: bool,
     pub selected: bool,
-    pub checked: Option<bool>,  // None = not checkable, Some(true/false) = checkable
+    pub checked: Option<bool>, // None = not checkable, Some(true/false) = checkable
     pub expanded: Option<bool>, // None = not expandable
     pub busy: bool,
 }
@@ -73,22 +73,22 @@ pub struct AccessibilityValue {
     pub min: Option<f64>,
     pub max: Option<f64>,
     pub now: Option<f64>,
-    pub text: Option<String>,  // e.g., "50%" or "Medium"
+    pub text: Option<String>, // e.g., "50%" or "Medium"
 }
 
 /// Complete accessibility info for a node.
 #[derive(Debug, Clone)]
 pub struct AccessibilityInfo {
     pub role: AccessibilityRole,
-    pub label: Option<String>,           // What screen reader announces
-    pub hint: Option<String>,            // Usage hint ("double tap to activate")
+    pub label: Option<String>, // What screen reader announces
+    pub hint: Option<String>,  // Usage hint ("double tap to activate")
     pub state: AccessibilityState,
     pub value: AccessibilityValue,
-    pub heading_level: Option<u8>,       // 1-6 for Heading role
-    pub live_region: LiveRegion,         // For dynamic content updates
+    pub heading_level: Option<u8>, // 1-6 for Heading role
+    pub live_region: LiveRegion,   // For dynamic content updates
     pub actions: Vec<AccessibilityAction>,
-    pub is_modal: bool,                  // Traps focus within this subtree
-    pub hides_descendants: bool,         // Children hidden from a11y tree
+    pub is_modal: bool,          // Traps focus within this subtree
+    pub hides_descendants: bool, // Children hidden from a11y tree
 }
 
 impl Default for AccessibilityInfo {
@@ -124,7 +124,7 @@ pub enum LiveRegion {
 #[derive(Debug, Clone)]
 pub struct AccessibilityAction {
     pub name: String,
-    pub label: String,  // Human-readable label for the action
+    pub label: String, // Human-readable label for the action
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -154,6 +154,12 @@ pub struct FocusConfig {
     pub auto_focus: bool,
 }
 
+impl Default for FocusManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FocusManager {
     pub fn new() -> Self {
         Self {
@@ -170,9 +176,12 @@ impl FocusManager {
             // Insert into focus order
             if config.tab_index > 0 {
                 // Explicit order: insert at the right position
-                let pos = self.focus_order.iter()
+                let pos = self
+                    .focus_order
+                    .iter()
                     .position(|&id| {
-                        self.focusable.get(&id)
+                        self.focusable
+                            .get(&id)
                             .map(|c| c.tab_index > config.tab_index)
                             .unwrap_or(true)
                     })
@@ -209,9 +218,12 @@ impl FocusManager {
     /// Move focus to the next focusable node (Tab key).
     pub fn focus_next(&mut self) -> Option<FocusChange> {
         let candidates = self.get_candidates();
-        if candidates.is_empty() { return None; }
+        if candidates.is_empty() {
+            return None;
+        }
 
-        let current_index = self.focused
+        let current_index = self
+            .focused
             .and_then(|id| candidates.iter().position(|&c| c == id))
             .unwrap_or(candidates.len().wrapping_sub(1));
 
@@ -222,9 +234,12 @@ impl FocusManager {
     /// Move focus to the previous focusable node (Shift+Tab).
     pub fn focus_previous(&mut self) -> Option<FocusChange> {
         let candidates = self.get_candidates();
-        if candidates.is_empty() { return None; }
+        if candidates.is_empty() {
+            return None;
+        }
 
-        let current_index = self.focused
+        let current_index = self
+            .focused
             .and_then(|id| candidates.iter().position(|&c| c == id))
             .unwrap_or(0);
 
@@ -278,11 +293,7 @@ pub struct FocusChange {
 /// Platform bridges implement this to push accessibility info to the OS.
 pub trait AccessibilityBridge {
     /// Update the accessibility info for a native view.
-    fn update_accessibility(
-        &self,
-        handle: NativeHandle,
-        info: &AccessibilityInfo,
-    );
+    fn update_accessibility(&self, handle: NativeHandle, info: &AccessibilityInfo);
 
     /// Announce a message to the screen reader.
     fn announce(&self, message: &str, priority: LiveRegion);
@@ -309,9 +320,9 @@ impl AccessibilityRole {
             Self::SearchField => "searchField",
             Self::TabBar => "tabBar",
             Self::Tab => "button", // + selected state
-            Self::List => "none", // UITableView handles this
+            Self::List => "none",  // UITableView handles this
             Self::ListItem => "none",
-            Self::Alert => "none", // UIAlertController handles this
+            Self::Alert => "none",       // UIAlertController handles this
             Self::ProgressBar => "none", // UIProgressView handles this
             Self::Menu => "none",
             Self::MenuItem => "button",
@@ -323,7 +334,7 @@ impl AccessibilityRole {
         match self {
             Self::None => "presentation",
             Self::Button => "button",
-            Self::Text => "",           // No role needed for text
+            Self::Text => "", // No role needed for text
             Self::Heading => "heading",
             Self::TextField => "textbox",
             Self::Image => "img",
@@ -374,9 +385,27 @@ mod tests {
     #[test]
     fn test_focus_cycle() {
         let mut fm = FocusManager::new();
-        fm.register(NodeId(1), FocusConfig { tab_index: 0, auto_focus: false });
-        fm.register(NodeId(2), FocusConfig { tab_index: 0, auto_focus: false });
-        fm.register(NodeId(3), FocusConfig { tab_index: 0, auto_focus: false });
+        fm.register(
+            NodeId(1),
+            FocusConfig {
+                tab_index: 0,
+                auto_focus: false,
+            },
+        );
+        fm.register(
+            NodeId(2),
+            FocusConfig {
+                tab_index: 0,
+                auto_focus: false,
+            },
+        );
+        fm.register(
+            NodeId(3),
+            FocusConfig {
+                tab_index: 0,
+                auto_focus: false,
+            },
+        );
 
         // Tab through all nodes
         let c = fm.focus_next().unwrap();
@@ -396,8 +425,20 @@ mod tests {
     #[test]
     fn test_focus_reverse() {
         let mut fm = FocusManager::new();
-        fm.register(NodeId(1), FocusConfig { tab_index: 0, auto_focus: false });
-        fm.register(NodeId(2), FocusConfig { tab_index: 0, auto_focus: false });
+        fm.register(
+            NodeId(1),
+            FocusConfig {
+                tab_index: 0,
+                auto_focus: false,
+            },
+        );
+        fm.register(
+            NodeId(2),
+            FocusConfig {
+                tab_index: 0,
+                auto_focus: false,
+            },
+        );
 
         fm.focus(NodeId(2));
         let c = fm.focus_previous().unwrap();
@@ -408,6 +449,9 @@ mod tests {
     fn test_role_mappings() {
         assert_eq!(AccessibilityRole::Button.aria_role(), "button");
         assert_eq!(AccessibilityRole::Switch.ios_traits(), "button");
-        assert_eq!(AccessibilityRole::TextField.android_class(), "android.widget.EditText");
+        assert_eq!(
+            AccessibilityRole::TextField.android_class(),
+            "android.widget.EditText"
+        );
     }
 }

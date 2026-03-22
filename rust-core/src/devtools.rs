@@ -9,9 +9,9 @@
 
 use crate::ir::IrBatch;
 use crate::layout::{ComputedLayout, LayoutEngine};
-use crate::tree::{NodeId, ShadowTree};
 use crate::platform::PropValue;
-use serde::{Serialize, Deserialize};
+use crate::tree::{NodeId, ShadowTree};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -41,7 +41,12 @@ pub struct LayoutRect {
 
 impl From<ComputedLayout> for LayoutRect {
     fn from(cl: ComputedLayout) -> Self {
-        Self { x: cl.x, y: cl.y, width: cl.width, height: cl.height }
+        Self {
+            x: cl.x,
+            y: cl.y,
+            width: cl.width,
+            height: cl.height,
+        }
     }
 }
 
@@ -54,11 +59,15 @@ pub fn snapshot_tree(tree: &ShadowTree, layout_engine: &LayoutEngine) -> Option<
 fn snapshot_node(id: NodeId, tree: &ShadowTree, layout: &LayoutEngine) -> NodeSnapshot {
     let node = tree.get(id).expect("node must exist");
 
-    let props: HashMap<String, serde_json::Value> = node.props.iter()
+    let props: HashMap<String, serde_json::Value> = node
+        .props
+        .iter()
         .map(|(k, v)| (k.clone(), prop_value_to_json(v)))
         .collect();
 
-    let children: Vec<NodeSnapshot> = node.children.iter()
+    let children: Vec<NodeSnapshot> = node
+        .children
+        .iter()
         .map(|&child_id| snapshot_node(child_id, tree, layout))
         .collect();
 
@@ -81,7 +90,12 @@ fn prop_value_to_json(v: &PropValue) -> serde_json::Value {
         PropValue::I32(i) => serde_json::json!(*i),
         PropValue::F32(f) => serde_json::json!(*f),
         PropValue::F64(f) => serde_json::json!(*f),
-        PropValue::Rect { x, y, width, height } => serde_json::json!({
+        PropValue::Rect {
+            x,
+            y,
+            width,
+            height,
+        } => serde_json::json!({
             "x": x, "y": y, "width": width, "height": height
         }),
         PropValue::Color(c) => serde_json::json!({
@@ -226,7 +240,11 @@ impl Profiler {
         let n = self.frames.len() as f64;
         let avg_total = self.frames.iter().map(|f| f.total_ms).sum::<f64>() / n;
         let avg_layout = self.frames.iter().map(|f| f.layout_ms).sum::<f64>() / n;
-        let max_total = self.frames.iter().map(|f| f.total_ms).fold(0.0_f64, f64::max);
+        let max_total = self
+            .frames
+            .iter()
+            .map(|f| f.total_ms)
+            .fold(0.0_f64, f64::max);
         let total_commits: u32 = self.frames.iter().map(|f| f.commit_count).sum();
 
         ProfileSummary {
@@ -292,8 +310,11 @@ impl IrRecorder {
 
     /// Record a batch if recording is active.
     pub fn record(&mut self, batch: &IrBatch) {
-        if !self.recording { return; }
-        let offset_ms = self.start_time
+        if !self.recording {
+            return;
+        }
+        let offset_ms = self
+            .start_time
             .map(|t| t.elapsed().as_secs_f64() * 1000.0)
             .unwrap_or(0.0);
         self.batches.push(TimestampedBatch {
@@ -327,7 +348,9 @@ impl IrRecorder {
 }
 
 impl Default for IrRecorder {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -426,7 +449,9 @@ pub fn handle_devtools_request(
             } else {
                 recorder.stop_recording();
             }
-            DevToolsResponse::Recording { data: serde_json::json!({"recording": enabled}) }
+            DevToolsResponse::Recording {
+                data: serde_json::json!({"recording": enabled}),
+            }
         }
         DevToolsRequest::GetRecording => {
             let data = recorder.export_json();
@@ -508,10 +533,18 @@ mod tests {
     fn test_profiler_summary() {
         let mut profiler = Profiler::new(100);
         profiler.push_frame(FrameRecord {
-            frame_number: 1, total_ms: 10.0, layout_ms: 4.0, commit_count: 2, node_count: 50,
+            frame_number: 1,
+            total_ms: 10.0,
+            layout_ms: 4.0,
+            commit_count: 2,
+            node_count: 50,
         });
         profiler.push_frame(FrameRecord {
-            frame_number: 2, total_ms: 20.0, layout_ms: 8.0, commit_count: 3, node_count: 55,
+            frame_number: 2,
+            total_ms: 20.0,
+            layout_ms: 8.0,
+            commit_count: 3,
+            node_count: 55,
         });
 
         let summary = profiler.summary();
@@ -527,8 +560,11 @@ mod tests {
         let mut profiler = Profiler::new(3);
         for i in 1..=5 {
             profiler.push_frame(FrameRecord {
-                frame_number: i, total_ms: i as f64, layout_ms: 0.0,
-                commit_count: 1, node_count: 10,
+                frame_number: i,
+                total_ms: i as f64,
+                layout_ms: 0.0,
+                commit_count: 1,
+                node_count: 10,
             });
         }
         assert_eq!(profiler.frames().len(), 3);
@@ -582,7 +618,11 @@ mod tests {
         let mut recorder = IrRecorder::new();
 
         let resp = handle_devtools_request(
-            &DevToolsRequest::GetTree, &tree, &layout, &profiler, &mut recorder,
+            &DevToolsRequest::GetTree,
+            &tree,
+            &layout,
+            &profiler,
+            &mut recorder,
         );
         match resp {
             DevToolsResponse::Tree { root } => assert!(root.is_none()),
@@ -599,13 +639,19 @@ mod tests {
 
         handle_devtools_request(
             &DevToolsRequest::SetRecording { enabled: true },
-            &tree, &layout, &profiler, &mut recorder,
+            &tree,
+            &layout,
+            &profiler,
+            &mut recorder,
         );
         assert!(recorder.is_recording());
 
         handle_devtools_request(
             &DevToolsRequest::SetRecording { enabled: false },
-            &tree, &layout, &profiler, &mut recorder,
+            &tree,
+            &layout,
+            &profiler,
+            &mut recorder,
         );
         assert!(!recorder.is_recording());
     }

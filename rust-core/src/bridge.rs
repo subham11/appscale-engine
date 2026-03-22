@@ -22,11 +22,11 @@
 //! │  • Processed via scheduler priority lanes            │
 //! └──────────────────────────────────────────────────────┘
 
-use crate::tree::NodeId;
 use crate::layout::ComputedLayout;
-use crate::platform::TextStyle;
 use crate::navigation::NavigationAction;
-use serde::{Serialize, Deserialize};
+use crate::platform::TextStyle;
+use crate::tree::NodeId;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -103,7 +103,9 @@ pub enum SyncCall {
     GetActiveRoute,
 }
 
-fn default_max_width() -> f32 { f32::INFINITY }
+fn default_max_width() -> f32 {
+    f32::INFINITY
+}
 
 /// Simplified text style for sync MeasureText calls (serde-compatible).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -173,11 +175,7 @@ pub enum SyncResult {
 
     /// Screen info result.
     #[serde(rename = "screen_info")]
-    ScreenInfo {
-        width: f32,
-        height: f32,
-        scale: f32,
-    },
+    ScreenInfo { width: f32, height: f32, scale: f32 },
 
     /// Accessibility role result.
     #[serde(rename = "role")]
@@ -267,31 +265,35 @@ impl AsyncCall {
     /// Convert a Navigate async call into a NavigationAction.
     pub fn to_navigation_action(&self) -> Option<NavigationAction> {
         match self {
-            AsyncCall::Navigate { action, route, params, url, index } => {
-                match action.as_str() {
-                    "push" => route.as_ref().map(|r| NavigationAction::Push {
-                        route: r.clone(),
-                        params: params.clone(),
-                    }),
-                    "pop" => Some(NavigationAction::Pop),
-                    "popToRoot" => Some(NavigationAction::PopToRoot),
-                    "replace" => route.as_ref().map(|r| NavigationAction::Replace {
-                        route: r.clone(),
-                        params: params.clone(),
-                    }),
-                    "presentModal" => route.as_ref().map(|r| NavigationAction::PresentModal {
-                        route: r.clone(),
-                        params: params.clone(),
-                    }),
-                    "dismissModal" => Some(NavigationAction::DismissModal),
-                    "switchTab" => index.map(|i| NavigationAction::SwitchTab { index: i }),
-                    "deepLink" => url.as_ref().map(|u| NavigationAction::DeepLink {
-                        url: u.clone(),
-                    }),
-                    "goBack" => Some(NavigationAction::GoBack),
-                    _ => None,
-                }
-            }
+            AsyncCall::Navigate {
+                action,
+                route,
+                params,
+                url,
+                index,
+            } => match action.as_str() {
+                "push" => route.as_ref().map(|r| NavigationAction::Push {
+                    route: r.clone(),
+                    params: params.clone(),
+                }),
+                "pop" => Some(NavigationAction::Pop),
+                "popToRoot" => Some(NavigationAction::PopToRoot),
+                "replace" => route.as_ref().map(|r| NavigationAction::Replace {
+                    route: r.clone(),
+                    params: params.clone(),
+                }),
+                "presentModal" => route.as_ref().map(|r| NavigationAction::PresentModal {
+                    route: r.clone(),
+                    params: params.clone(),
+                }),
+                "dismissModal" => Some(NavigationAction::DismissModal),
+                "switchTab" => index.map(|i| NavigationAction::SwitchTab { index: i }),
+                "deepLink" => url
+                    .as_ref()
+                    .map(|u| NavigationAction::DeepLink { url: u.clone() }),
+                "goBack" => Some(NavigationAction::GoBack),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -310,7 +312,7 @@ pub enum NativeCallback {
     #[serde(rename = "pointer")]
     Pointer {
         node_id: NodeId,
-        event_type: String,    // "down", "move", "up", "cancel"
+        event_type: String, // "down", "move", "up", "cancel"
         x: f32,
         y: f32,
     },
@@ -319,7 +321,7 @@ pub enum NativeCallback {
     #[serde(rename = "keyboard")]
     Keyboard {
         node_id: NodeId,
-        event_type: String,    // "keydown", "keyup"
+        event_type: String, // "keydown", "keyup"
         key: String,
         code: String,
     },
@@ -333,10 +335,7 @@ pub enum NativeCallback {
 
     /// Navigation event (back button, deep link).
     #[serde(rename = "navigation")]
-    Navigation {
-        action: String,
-        url: Option<String>,
-    },
+    Navigation { action: String, url: Option<String> },
 
     /// Scroll event.
     #[serde(rename = "scroll")]
@@ -348,10 +347,7 @@ pub enum NativeCallback {
 
     /// Text input change.
     #[serde(rename = "text_change")]
-    TextChange {
-        node_id: NodeId,
-        text: String,
-    },
+    TextChange { node_id: NodeId, text: String },
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -399,7 +395,9 @@ pub unsafe extern "C" fn appscale_sync_call(json_input: *const c_char) -> *mut c
     let call: SyncCall = match serde_json::from_str(input) {
         Ok(c) => c,
         Err(e) => {
-            let err = SyncResult::Error { message: format!("parse error: {}", e) };
+            let err = SyncResult::Error {
+                message: format!("parse error: {}", e),
+            };
             return to_c_string_or_null(&serde_json::to_string(&err).unwrap_or_default());
         }
     };
@@ -444,7 +442,9 @@ pub unsafe extern "C" fn appscale_free_string(ptr: *mut c_char) {
 
 /// Helper: convert a Rust string to a C string pointer (or null on failure).
 fn to_c_string_or_null(s: &str) -> *mut c_char {
-    CString::new(s).map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+    CString::new(s)
+        .map(|c| c.into_raw())
+        .unwrap_or(std::ptr::null_mut())
 }
 
 #[cfg(test)]
@@ -453,7 +453,9 @@ mod tests {
 
     #[test]
     fn test_sync_call_roundtrip() {
-        let call = SyncCall::Measure { node_id: NodeId(42) };
+        let call = SyncCall::Measure {
+            node_id: NodeId(42),
+        };
         let json = serde_json::to_string(&call).unwrap();
         let decoded: SyncCall = serde_json::from_str(&json).unwrap();
         match decoded {
@@ -464,16 +466,26 @@ mod tests {
 
     #[test]
     fn test_sync_result_roundtrip() {
-        let result = SyncResult::Layout { x: 10.0, y: 20.0, width: 100.0, height: 50.0 };
+        let result = SyncResult::Layout {
+            x: 10.0,
+            y: 20.0,
+            width: 100.0,
+            height: 50.0,
+        };
         let json = serde_json::to_string(&result).unwrap();
         let decoded: SyncResult = serde_json::from_str(&json).unwrap();
         match decoded {
-            SyncResult::Layout { x, y, width, height } => {
+            SyncResult::Layout {
+                x,
+                y,
+                width,
+                height,
+            } => {
                 assert_eq!(x, 10.0);
                 assert_eq!(y, 20.0);
                 assert_eq!(width, 100.0);
                 assert_eq!(height, 50.0);
-            },
+            }
             _ => panic!("wrong variant"),
         }
     }
@@ -509,7 +521,12 @@ mod tests {
         assert!(json.contains("\"call\":\"navigate\""));
         let decoded: AsyncCall = serde_json::from_str(&json).unwrap();
         match &decoded {
-            AsyncCall::Navigate { action, route, params, .. } => {
+            AsyncCall::Navigate {
+                action,
+                route,
+                params,
+                ..
+            } => {
                 assert_eq!(action, "push");
                 assert_eq!(route.as_deref(), Some("Settings"));
                 assert_eq!(params.get("id").map(|s| s.as_str()), Some("42"));
@@ -518,7 +535,9 @@ mod tests {
         }
 
         // SetFocus
-        let call = AsyncCall::SetFocus { node_id: NodeId(99) };
+        let call = AsyncCall::SetFocus {
+            node_id: NodeId(99),
+        };
         let json = serde_json::to_string(&call).unwrap();
         let decoded: AsyncCall = serde_json::from_str(&json).unwrap();
         match decoded {
@@ -527,7 +546,9 @@ mod tests {
         }
 
         // Announce
-        let call = AsyncCall::Announce { message: "Item added".into() };
+        let call = AsyncCall::Announce {
+            message: "Item added".into(),
+        };
         let json = serde_json::to_string(&call).unwrap();
         let decoded: AsyncCall = serde_json::from_str(&json).unwrap();
         match decoded {
@@ -552,7 +573,11 @@ mod tests {
         assert!(json.contains("\"call\":\"measure_text\""));
         let decoded: SyncCall = serde_json::from_str(&json).unwrap();
         match decoded {
-            SyncCall::MeasureText { text, style, max_width } => {
+            SyncCall::MeasureText {
+                text,
+                style,
+                max_width,
+            } => {
                 assert_eq!(text, "Hello");
                 assert_eq!(style.font_size, Some(16.0));
                 assert_eq!(max_width, 200.0);
@@ -588,7 +613,12 @@ mod tests {
         let json = serde_json::to_string(&result).unwrap();
         let decoded: SyncResult = serde_json::from_str(&json).unwrap();
         match decoded {
-            SyncResult::TextMetrics { width, height, baseline, line_count } => {
+            SyncResult::TextMetrics {
+                width,
+                height,
+                baseline,
+                line_count,
+            } => {
                 assert_eq!(width, 80.0);
                 assert_eq!(height, 20.0);
                 assert_eq!(baseline, 16.0);

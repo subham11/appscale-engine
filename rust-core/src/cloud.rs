@@ -12,7 +12,7 @@
 //! validation logic. Actual HTTP transport is handled by platform adapters.
 
 use crate::platform::PlatformId;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -90,7 +90,10 @@ pub enum BuildStatus {
 
 impl BuildStatus {
     pub fn is_terminal(&self) -> bool {
-        matches!(self, BuildStatus::Succeeded | BuildStatus::Failed { .. } | BuildStatus::Cancelled)
+        matches!(
+            self,
+            BuildStatus::Succeeded | BuildStatus::Failed { .. } | BuildStatus::Cancelled
+        )
     }
 
     pub fn is_success(&self) -> bool {
@@ -188,9 +191,10 @@ impl BuildPipeline {
 
     /// Get jobs by status.
     pub fn jobs_with_status(&self, status_match: &BuildStatus) -> Vec<&BuildJob> {
-        self.jobs.iter().filter(|j| {
-            std::mem::discriminant(&j.status) == std::mem::discriminant(status_match)
-        }).collect()
+        self.jobs
+            .iter()
+            .filter(|j| std::mem::discriminant(&j.status) == std::mem::discriminant(status_match))
+            .collect()
     }
 
     /// Get the set of targets in this pipeline.
@@ -208,7 +212,9 @@ pub fn validate_pipeline(pipeline: &BuildPipeline) -> CloudResult<()> {
         return Err(CloudError::InvalidConfig("app_version is required".into()));
     }
     if pipeline.jobs.is_empty() {
-        return Err(CloudError::InvalidConfig("pipeline must have at least one job".into()));
+        return Err(CloudError::InvalidConfig(
+            "pipeline must have at least one job".into(),
+        ));
     }
 
     // Check for duplicate targets with same mode
@@ -216,9 +222,10 @@ pub fn validate_pipeline(pipeline: &BuildPipeline) -> CloudResult<()> {
     for job in &pipeline.jobs {
         let key = (job.config.target, job.config.mode);
         if !seen.insert(key) {
-            return Err(CloudError::InvalidConfig(
-                format!("Duplicate target {:?} with mode {:?}", key.0, key.1),
-            ));
+            return Err(CloudError::InvalidConfig(format!(
+                "Duplicate target {:?} with mode {:?}",
+                key.0, key.1
+            )));
         }
     }
 
@@ -240,7 +247,12 @@ pub struct BundleVersion {
 
 impl BundleVersion {
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch, build: None }
+        Self {
+            major,
+            minor,
+            patch,
+            build: None,
+        }
     }
 
     pub fn with_build(mut self, build: u32) -> Self {
@@ -276,7 +288,8 @@ impl std::fmt::Display for BundleVersion {
 
 impl Ord for BundleVersion {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.major.cmp(&other.major)
+        self.major
+            .cmp(&other.major)
             .then(self.minor.cmp(&other.minor))
             .then(self.patch.cmp(&other.patch))
             .then(self.build.unwrap_or(0).cmp(&other.build.unwrap_or(0)))
@@ -313,7 +326,10 @@ pub struct OtaManifest {
 
 impl OtaManifest {
     pub fn new(app_id: impl Into<String>) -> Self {
-        Self { app_id: app_id.into(), updates: Vec::new() }
+        Self {
+            app_id: app_id.into(),
+            updates: Vec::new(),
+        }
     }
 
     /// Find the latest compatible update for the given native version and platform.
@@ -322,7 +338,8 @@ impl OtaManifest {
         current_native: &BundleVersion,
         platform: BuildTarget,
     ) -> Option<&OtaUpdate> {
-        self.updates.iter()
+        self.updates
+            .iter()
             .filter(|u| current_native.is_compatible_with(&u.min_native_version))
             .filter(|u| u.target_platforms.contains(&platform))
             .max_by(|a, b| a.version.cmp(&b.version))
@@ -362,7 +379,9 @@ pub fn evaluate_ota(
     platform: BuildTarget,
 ) -> OtaDecision {
     // Check if any update requires a newer native version
-    let newest = manifest.updates.iter()
+    let newest = manifest
+        .updates
+        .iter()
         .filter(|u| u.target_platforms.contains(&platform))
         .max_by(|a, b| a.version.cmp(&b.version));
 
@@ -386,9 +405,13 @@ pub fn evaluate_ota(
     match manifest.latest_update(current_native, platform) {
         Some(update) if update.version > *current_bundle => {
             if update.is_mandatory {
-                OtaDecision::Mandatory { version: update.version.clone() }
+                OtaDecision::Mandatory {
+                    version: update.version.clone(),
+                }
             } else {
-                OtaDecision::Optional { version: update.version.clone() }
+                OtaDecision::Optional {
+                    version: update.version.clone(),
+                }
             }
         }
         _ => OtaDecision::NoUpdate,
@@ -411,12 +434,12 @@ pub struct CacheKey {
 }
 
 impl CacheKey {
-    pub fn new(
-        content_hash: impl Into<String>,
-        target: BuildTarget,
-        mode: BuildMode,
-    ) -> Self {
-        Self { content_hash: content_hash.into(), target, mode }
+    pub fn new(content_hash: impl Into<String>, target: BuildTarget, mode: BuildMode) -> Self {
+        Self {
+            content_hash: content_hash.into(),
+            target,
+            mode,
+        }
     }
 }
 
@@ -507,7 +530,9 @@ impl ArtifactCache {
 
     /// Remove all expired entries.
     pub fn purge_expired(&mut self, now: f64) -> usize {
-        let expired_keys: Vec<CacheKey> = self.entries.iter()
+        let expired_keys: Vec<CacheKey> = self
+            .entries
+            .iter()
             .filter(|(_, e)| e.is_expired(now))
             .map(|(k, _)| k.clone())
             .collect();
@@ -520,8 +545,14 @@ impl ArtifactCache {
 
     /// Evict the least-recently-accessed entry.
     fn evict_oldest(&mut self) {
-        let oldest_key = self.entries.iter()
-            .min_by(|a, b| a.1.last_accessed.partial_cmp(&b.1.last_accessed).unwrap_or(std::cmp::Ordering::Equal))
+        let oldest_key = self
+            .entries
+            .iter()
+            .min_by(|a, b| {
+                a.1.last_accessed
+                    .partial_cmp(&b.1.last_accessed)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(k, _)| k.clone());
         if let Some(key) = oldest_key {
             self.remove(&key);
@@ -642,7 +673,9 @@ mod tests {
         assert!(pipeline.is_complete());
         assert!(pipeline.all_succeeded());
 
-        pipeline.jobs[0].status = BuildStatus::Failed { reason: "oom".into() };
+        pipeline.jobs[0].status = BuildStatus::Failed {
+            reason: "oom".into(),
+        };
         assert!(pipeline.is_complete());
         assert!(!pipeline.all_succeeded());
     }
@@ -680,7 +713,10 @@ mod tests {
     #[test]
     fn test_version_display() {
         assert_eq!(BundleVersion::new(1, 2, 3).to_string(), "1.2.3");
-        assert_eq!(BundleVersion::new(1, 0, 0).with_build(42).to_string(), "1.0.0+42");
+        assert_eq!(
+            BundleVersion::new(1, 0, 0).with_build(42).to_string(),
+            "1.0.0+42"
+        );
     }
 
     #[test]
@@ -688,7 +724,10 @@ mod tests {
         let manifest = OtaManifest::new("app1");
         let current = BundleVersion::new(1, 0, 0);
         let native = BundleVersion::new(1, 0, 0);
-        assert_eq!(evaluate_ota(&manifest, &current, &native, BuildTarget::Ios), OtaDecision::NoUpdate);
+        assert_eq!(
+            evaluate_ota(&manifest, &current, &native, BuildTarget::Ios),
+            OtaDecision::NoUpdate
+        );
     }
 
     #[test]
@@ -711,7 +750,9 @@ mod tests {
         let native = BundleVersion::new(1, 0, 0);
         assert_eq!(
             evaluate_ota(&manifest, &current, &native, BuildTarget::Ios),
-            OtaDecision::Optional { version: BundleVersion::new(1, 1, 0) }
+            OtaDecision::Optional {
+                version: BundleVersion::new(1, 1, 0)
+            }
         );
     }
 
@@ -735,7 +776,9 @@ mod tests {
         let native = BundleVersion::new(1, 0, 0);
         assert_eq!(
             evaluate_ota(&manifest, &current, &native, BuildTarget::Ios),
-            OtaDecision::Mandatory { version: BundleVersion::new(1, 2, 0) }
+            OtaDecision::Mandatory {
+                version: BundleVersion::new(1, 2, 0)
+            }
         );
     }
 
@@ -759,7 +802,9 @@ mod tests {
         let native = BundleVersion::new(1, 0, 0);
         assert_eq!(
             evaluate_ota(&manifest, &current, &native, BuildTarget::Ios),
-            OtaDecision::NativeUpdateRequired { min_native: BundleVersion::new(2, 0, 0) }
+            OtaDecision::NativeUpdateRequired {
+                min_native: BundleVersion::new(2, 0, 0)
+            }
         );
     }
 
@@ -781,7 +826,10 @@ mod tests {
 
         let current = BundleVersion::new(1, 0, 0);
         let native = BundleVersion::new(1, 0, 0);
-        assert_eq!(evaluate_ota(&manifest, &current, &native, BuildTarget::Ios), OtaDecision::NoUpdate);
+        assert_eq!(
+            evaluate_ota(&manifest, &current, &native, BuildTarget::Ios),
+            OtaDecision::NoUpdate
+        );
     }
 
     // ── Artifact Cache Tests ──
@@ -956,7 +1004,10 @@ mod tests {
     #[test]
     fn test_build_target_platform_id_mapping() {
         assert_eq!(BuildTarget::Ios.to_platform_id(), Some(PlatformId::Ios));
-        assert_eq!(BuildTarget::Android.to_platform_id(), Some(PlatformId::Android));
+        assert_eq!(
+            BuildTarget::Android.to_platform_id(),
+            Some(PlatformId::Android)
+        );
         assert_eq!(BuildTarget::Web.to_platform_id(), Some(PlatformId::Web));
         assert_eq!(BuildTarget::Linux.to_platform_id(), None);
     }

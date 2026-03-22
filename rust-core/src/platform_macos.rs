@@ -12,8 +12,8 @@
 
 use crate::platform::*;
 use crate::tree::NodeId;
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// macOS platform bridge.
 ///
@@ -38,7 +38,10 @@ impl MacosPlatform {
             next_handle: Mutex::new(1),
             views: Mutex::new(HashMap::new()),
             // Default: 14" MacBook Pro logical resolution
-            screen: ScreenSize { width: 1512.0, height: 982.0 },
+            screen: ScreenSize {
+                width: 1512.0,
+                height: 982.0,
+            },
             scale: 2.0,
         }
     }
@@ -55,7 +58,9 @@ impl MacosPlatform {
 }
 
 impl Default for MacosPlatform {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PlatformBridge for MacosPlatform {
@@ -68,11 +73,14 @@ impl PlatformBridge for MacosPlatform {
         let handle = NativeHandle(*h);
         *h += 1;
 
-        self.views.lock().unwrap().insert(handle.0, ViewRecord {
-            _view_type: view_type,
-            _node_id: node_id,
-            children: Vec::new(),
-        });
+        self.views.lock().unwrap().insert(
+            handle.0,
+            ViewRecord {
+                _view_type: view_type,
+                _node_id: node_id,
+                children: Vec::new(),
+            },
+        );
 
         handle
     }
@@ -136,14 +144,15 @@ impl PlatformBridge for MacosPlatform {
     }
 
     fn supports(&self, capability: PlatformCapability) -> bool {
-        matches!(capability,
+        matches!(
+            capability,
             PlatformCapability::MenuBar
-            | PlatformCapability::SystemTray
-            | PlatformCapability::MultiWindow
-            | PlatformCapability::DragAndDrop
-            | PlatformCapability::ContextMenu
-            | PlatformCapability::NativeFilePicker
-            | PlatformCapability::NativeDatePicker
+                | PlatformCapability::SystemTray
+                | PlatformCapability::MultiWindow
+                | PlatformCapability::DragAndDrop
+                | PlatformCapability::ContextMenu
+                | PlatformCapability::NativeFilePicker
+                | PlatformCapability::NativeDatePicker
         )
     }
 }
@@ -189,7 +198,10 @@ mod tests {
     #[test]
     fn test_macos_text_measurement() {
         let platform = MacosPlatform::new();
-        let style = TextStyle { font_size: Some(16.0), ..TextStyle::default() };
+        let style = TextStyle {
+            font_size: Some(16.0),
+            ..TextStyle::default()
+        };
         let metrics = platform.measure_text("Hello macOS", &style, 200.0);
         assert!(metrics.width > 0.0);
         assert!(metrics.height > 0.0);
