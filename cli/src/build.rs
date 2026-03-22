@@ -16,6 +16,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Build configuration derived from CLI args.
+///
+/// Implements `Default` so that tests can use `..Default::default()` and
+/// remain resilient when new fields are added.
 pub struct BuildConfig {
     pub platform: String,
     pub release: bool,
@@ -23,6 +26,18 @@ pub struct BuildConfig {
     pub output_dir: String,
     /// Absolute path to the project root (where package.json lives).
     pub project_root: PathBuf,
+}
+
+impl Default for BuildConfig {
+    fn default() -> Self {
+        Self {
+            platform: "web".to_string(),
+            release: false,
+            simulator: false,
+            output_dir: "dist".to_string(),
+            project_root: PathBuf::from("/tmp/test"),
+        }
+    }
 }
 
 impl BuildConfig {
@@ -1272,20 +1287,14 @@ mod tests {
     #[test]
     fn build_config_profile() {
         let debug_cfg = BuildConfig {
-            platform: "web".to_string(),
             release: false,
-            simulator: false,
-            output_dir: "dist".to_string(),
-            project_root: PathBuf::from("/tmp/test"),
+            ..Default::default()
         };
         assert_eq!(debug_cfg.profile(), "debug");
 
         let release_cfg = BuildConfig {
-            platform: "ios".to_string(),
             release: true,
-            simulator: false,
-            output_dir: "dist".to_string(),
-            project_root: PathBuf::from("/tmp/test"),
+            ..Default::default()
         };
         assert_eq!(release_cfg.profile(), "release");
     }
@@ -1303,10 +1312,7 @@ mod tests {
         for (platform, expected_target) in platforms {
             let cfg = BuildConfig {
                 platform: platform.to_string(),
-                release: false,
-                simulator: false,
-                output_dir: "dist".to_string(),
-                project_root: PathBuf::from("/tmp/test"),
+                ..Default::default()
             };
             assert_eq!(cfg.rust_target(), expected_target);
         }
@@ -1314,10 +1320,8 @@ mod tests {
         // iOS simulator target
         let sim_cfg = BuildConfig {
             platform: "ios".to_string(),
-            release: false,
             simulator: true,
-            output_dir: "dist".to_string(),
-            project_root: PathBuf::from("/tmp/test"),
+            ..Default::default()
         };
         assert_eq!(sim_cfg.rust_target(), "aarch64-apple-ios-sim");
     }
