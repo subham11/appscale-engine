@@ -195,7 +195,7 @@ impl LayoutEngine {
         self.taffy.compute_layout_with_measure(
             root_taffy,
             available,
-            |known_dims, available_space, _node_id, node_context, _style| {
+            |_known_dims, available_space, _node_id, node_context, _style| {
                 if let Some(framework_id) = node_context {
                     // Check if this is a Text node that needs measurement
                     if let Some(node) = tree.get(*framework_id) {

@@ -115,7 +115,7 @@ impl Engine {
     /// 5. Issue platform bridge calls (mount phase)
     pub fn apply_commit(&mut self, batch: &ir::IrBatch) -> Result<(), EngineError> {
         self.frame_count += 1;
-        let frame_start = Instant::now();
+        let _frame_start = Instant::now();
         let _span = tracing::info_span!("commit", frame = self.frame_count).entered();
 
         // Phase 1: Apply IR commands to shadow tree + collect dirty nodes

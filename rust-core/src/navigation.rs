@@ -10,7 +10,7 @@
 //! 3. Back button/gesture handling is synchronous and platform-specific
 
 use crate::tree::NodeId;
-use crate::platform::{PlatformBridge, NativeHandle};
+use crate::platform::NativeHandle;
 use std::collections::HashMap;
 
 /// A route definition (registered at app startup).

@@ -211,13 +211,13 @@ scoop install appscale
 
 ## Quick Checklist for First Release
 
-- [ ] Create the `subham11/homebrew-tap` repo with `Formula/appscale.rb`
-- [ ] Add `HOMEBREW_TAP_TOKEN` secret to the main repo (GitHub PAT → tap repo write access)
-- [ ] Add `CARGO_REGISTRY_TOKEN` secret to the main repo (from `cargo login`)
-- [ ] Update `cli/Cargo.toml` to include version alongside path: `appscale-core = { path = "../rust-core", version = "0.1.0" }`
-- [ ] Run `cargo publish --dry-run` for both crates to verify packaging
-- [ ] Create a `LICENSE` file (MIT) in the repo root
-- [ ] Tag and push: `git tag v0.1.0 && git push origin main --tags`
+- [x] Create the `subham11/homebrew-tap` repo with `Formula/appscale.rb`
+- [x] Add `HOMEBREW_TAP_TOKEN` secret to the main repo (GitHub PAT → tap repo write access)
+- [x] Add `CARGO_REGISTRY_TOKEN` secret to the main repo (from `cargo login`)
+- [x] Update `cli/Cargo.toml` to include version alongside path: `appscale-core = { path = "../rust-core", version = "0.1.0" }`
+- [x] Run `cargo publish --dry-run` for both crates to verify packaging
+- [x] Create a `LICENSE` file (MIT) in the repo root
+- [x] Tag and push: `git tag v0.1.0 && git push origin main --tags`
 - [ ] Verify GitHub Release appears with all 5 binary archives
 - [ ] Verify `brew install subham11/tap/appscale` works
 - [ ] Verify `cargo install appscale-cli` works

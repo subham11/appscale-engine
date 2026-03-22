@@ -8,7 +8,6 @@
 //! - **windows**: Compiles Rust → DLL, generates MSBuild project
 
 use anyhow::Result;
-use std::path::Path;
 
 /// Build configuration derived from CLI args.
 pub struct BuildConfig {

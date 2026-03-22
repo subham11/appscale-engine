@@ -193,7 +193,7 @@ pub enum LayoutHintType {
 }
 
 /// Analyze a shadow tree and produce layout optimization hints.
-pub fn analyze_layout(tree: &ShadowTree, layout: &LayoutEngine) -> Vec<LayoutHint> {
+pub fn analyze_layout(tree: &ShadowTree, _layout: &LayoutEngine) -> Vec<LayoutHint> {
     let mut hints = Vec::new();
 
     let root = match tree.root() {

@@ -7,7 +7,7 @@
 //! - IR Replay: record and replay IR command batches
 //! - WebSocket bridge types (protocol messages)
 
-use crate::ir::{IrBatch, IrCommand};
+use crate::ir::IrBatch;
 use crate::layout::{ComputedLayout, LayoutEngine};
 use crate::tree::{NodeId, ShadowTree};
 use crate::platform::PropValue;

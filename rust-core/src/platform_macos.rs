@@ -27,8 +27,8 @@ pub struct MacosPlatform {
 }
 
 struct ViewRecord {
-    view_type: ViewType,
-    node_id: NodeId,
+    _view_type: ViewType,
+    _node_id: NodeId,
     children: Vec<NativeHandle>,
 }
 
@@ -69,8 +69,8 @@ impl PlatformBridge for MacosPlatform {
         *h += 1;
 
         self.views.lock().unwrap().insert(handle.0, ViewRecord {
-            view_type,
-            node_id,
+            _view_type: view_type,
+            _node_id: node_id,
             children: Vec::new(),
         });
 

@@ -120,7 +120,7 @@ pub trait NativeModule: Send + Sync {
     fn methods(&self) -> Vec<MethodDescriptor>;
 
     /// Invoke a synchronous method. Must not block for long.
-    fn invoke_sync(&self, method: &str, args: &[ModuleArg]) -> ModuleResult {
+    fn invoke_sync(&self, method: &str, _args: &[ModuleArg]) -> ModuleResult {
         Err(ModuleError::MethodNotFound {
             module: self.name().to_string(),
             method: method.to_string(),
@@ -130,7 +130,7 @@ pub trait NativeModule: Send + Sync {
     /// Invoke an asynchronous method. Returns a boxed future.
     /// Default implementation returns MethodNotFound.
     fn invoke_async(
-        &self, method: &str, args: &[ModuleArg],
+        &self, method: &str, _args: &[ModuleArg],
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ModuleResult> + Send + '_>> {
         let module = self.name().to_string();
         let method = method.to_string();

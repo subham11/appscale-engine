@@ -434,7 +434,7 @@ function createHostConfig(engine: NativeEngine) {
     prepareScopeUpdate() {},
     getInstanceFromScope() { return null; },
     detachDeletedInstance() {},
-    requestPostPaintCallback() {},
+    preparePortalMount() {},
 
     scheduleTimeout: setTimeout,
     cancelTimeout: clearTimeout,

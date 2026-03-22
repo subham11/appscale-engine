@@ -49,7 +49,7 @@ pub enum Priority {
 struct WorkItem {
     batch: IrBatch,
     priority: Priority,
-    enqueued_at: Instant,
+    _enqueued_at: Instant,
 }
 
 /// The scheduler manages the work queue and coordinates frame timing.
@@ -104,7 +104,7 @@ impl Scheduler {
         let item = WorkItem {
             batch,
             priority,
-            enqueued_at: Instant::now(),
+            _enqueued_at: Instant::now(),
         };
 
         {
